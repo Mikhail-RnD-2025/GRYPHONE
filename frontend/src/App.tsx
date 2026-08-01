@@ -10,6 +10,7 @@ interface Camera {
   comment: string;
   _m: string;
   _s: string;
+  status?: string;
 }
 
 interface StreamStats {
@@ -42,6 +43,7 @@ function App() {
   const [currentSet, setCurrentSet] = useState<string>('');
   const [stats, setStats] = useState<StreamStats>({});
   const [loading, setLoading] = useState(true);
+  const [gridConfig, setGridConfig] = useState({ columns: 2, rows: 0 });
 
   // Load initial data
   useEffect(() => {
@@ -53,7 +55,7 @@ function App() {
         setCameras(cams.map((cam: any) => ({
           ...cam,
           _m: `${cam.id}_main`,
-          _s: `${cam.id}${cam.sub_url === cam.main_url ? '_main' : '_sub'}`,
+          _s: `${cam.sub_url === cam.main_url ? '_main' : '_sub'}`,
         })));
         
         const setsObj = setsData.sets || {};
@@ -61,6 +63,14 @@ function App() {
         
         const defaultSet = setsData.default_set || Object.keys(setsObj)[0] || '';
         setCurrentSet(defaultSet);
+        
+        // Обновляем конфигурацию сетки
+        if (setsObj[defaultSet]) {
+          setGridConfig({
+            columns: setsObj[defaultSet].max_columns || 2,
+            rows: setsObj[defaultSet].max_rows || 0
+          });
+        }
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -92,6 +102,18 @@ function App() {
       evtSource.close();
     };
   }, []);
+
+  // Handle set change
+  const handleSetChange = async (setId: string) => {
+    setCurrentSet(setId);
+    const setData = sets[setId];
+    if (setData) {
+      setGridConfig({
+        columns: setData.max_columns || 2,
+        rows: setData.max_rows || 0
+      });
+    }
+  };
 
   // Handle toggle camera
   const handleToggleCamera = async (cameraId: string, enabled: boolean) => {
@@ -130,18 +152,32 @@ function App() {
   };
 
   if (loading) {
-    return <div className="loading">Загрузка...</div>;
+    return <div className="loading">Загрузка GPYPHONE...</div>;
   }
+
+  // Фильтруем камеры по текущему набору
+  const currentSetData = sets[currentSet];
+  const displayedCameras = currentSetData?.camera_ids 
+    ? cameras.filter(cam => currentSetData.camera_ids!.includes(cam.id))
+    : cameras;
+
+  // Ограничиваем количество камер по строкам
+  const maxCameras = gridConfig.rows > 0 
+    ? gridConfig.columns * gridConfig.rows 
+    : displayedCameras.length;
+  
+  const finalCameras = displayedCameras.slice(0, maxCameras);
+  const hiddenCount = displayedCameras.length - finalCameras.length;
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>📹 Мониторинг</h1>
+        <h1>📹 GPYPHONE</h1>
         <div className="header-controls">
           {Object.keys(sets).length > 0 && (
             <select
               value={currentSet}
-              onChange={(e) => setCurrentSet(e.target.value)}
+              onChange={(e) => handleSetChange(e.target.value)}
               className="set-selector"
             >
               {Object.entries(sets).map(([setId, setData]) => (
@@ -158,23 +194,35 @@ function App() {
       </header>
 
       <main className="grid-container">
-        {cameras.length === 0 ? (
+        {finalCameras.length === 0 ? (
           <div className="alert">
             📭 Наборы не созданы. Перейдите в{' '}
             <a href="/settings">Настройки</a>.
           </div>
         ) : (
-          <div className="grid">
-            {cameras.map((camera) => (
-              <StreamCard
-                key={camera.id}
-                camera={camera}
-                stats={stats[camera._s]}
-                onToggle={handleToggleCamera}
-                onSaveComment={handleSaveComment}
-              />
-            ))}
-          </div>
+          <>
+            <div 
+              className="grid"
+              style={{
+                gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(320px, 1fr))`
+              }}
+            >
+              {finalCameras.map((camera) => (
+                <StreamCard
+                  key={camera.id}
+                  camera={camera}
+                  stats={stats[camera._s]}
+                  onToggle={handleToggleCamera}
+                  onSaveComment={handleSaveComment}
+                />
+              ))}
+            </div>
+            {hiddenCount > 0 && (
+              <div className="hidden-cameras-info">
+                Скрыто камер: {hiddenCount} (настройте в параметрах набора)
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

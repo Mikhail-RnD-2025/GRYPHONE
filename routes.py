@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Модуль routes.py
-Отвечает за: HTTP/SSE эндпоинты, REST API, отдача HLS-файлов.
+Отвечает за: HTTP/SSE эндпоинты, REST API, отдача HLS-файлов, статика React.
 """
 
 import os
@@ -10,7 +10,8 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from quart import Response, abort, jsonify, redirect, render_template, request, send_file, url_for
+from quart import Response, abort, jsonify, redirect, render_template, request, send_file, url_for, send_from_directory
+from quart_cors import cors
 
 from state import STATE_LOCK, LOGS_LOCK, CFG, CAMERAS_DB, CAMERA_SETS, current_set_id, STREAM_STATS, FFMPEG_LOGS
 from database import DBManager
@@ -21,6 +22,32 @@ db = DBManager()
 
 def register_routes(app):
     """Регистрация всех HTTP-маршрутов приложения."""
+    
+    # Включаем CORS для API
+    app = cors(app, allow_origin="*", allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
+
+    # =====================================================
+    # React App - раздача статики (основной UI)
+    # =====================================================
+    
+    @app.route('/react-app')
+    async def react_app():
+        """Основная страница React приложения"""
+        return await send_from_directory('../frontend/dist', 'index.html')
+    
+    @app.route('/react-app/<path:path>')
+    async def react_static(path):
+        """Раздача статических файлов React приложения"""
+        if '.' in path:
+            # Это файл (JS, CSS, изображения и т.д.)
+            return await send_from_directory('../frontend/dist', path)
+        else:
+            # Это SPA роутинг - возвращаем index.html
+            return await send_from_directory('../frontend/dist', 'index.html')
+
+    # =====================================================
+    # Старые маршруты (для обратной совместимости)
+    # =====================================================
 
     @app.after_request
     async def add_no_cache_headers(response):
