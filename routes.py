@@ -39,7 +39,12 @@ def register_routes(app):
         """Основная страница React приложения"""
         return await send_from_directory(FRONTEND_DIST, 'index.html')
     
-    @app.route('/<path:path>')
+    @app.route('/react-app/')
+    async def react_app_root():
+        """Корневой путь React приложения"""
+        return await send_from_directory(FRONTEND_DIST, 'index.html')
+    
+    @app.route('/react-app/<path:path>')
     async def react_static(path):
         """Раздача статических файлов React приложения"""
         if '.' in path:
