@@ -2,6 +2,6 @@
 # Logs
 *.log
 
-# Dependencies
-node_modules/
+# Environment
+.env.local
 ```

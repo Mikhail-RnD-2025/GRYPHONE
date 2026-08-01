@@ -44,42 +44,27 @@ function App() {
   const [stats, setStats] = useState<StreamStats>({});
   const [loading, setLoading] = useState(true);
   const [gridConfig, setGridConfig] = useState({ columns: 2, rows: 0 });
-  const [gridStyle, setGridStyle] = useState<{ gridTemplateColumns: string }>({ gridTemplateColumns: '' });
 
-  // Calculate grid dimensions based on screen size
+  // Calculate grid dimensions based on screen size and set configuration
   useEffect(() => {
     const calculateGrid = () => {
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
-      const headerHeight = 60; // approximate header height
+      const headerHeight = 60;
       const availableHeight = screenHeight - headerHeight;
       
-      // Assume 16:9 aspect ratio for videos
-      const videoAspectRatio = 16 / 9;
+      // Use set configuration if available, otherwise auto-calculate
+      const targetCols = currentSet && sets[currentSet]?.max_columns 
+        ? sets[currentSet].max_columns 
+        : gridConfig.columns;
       
-      // Try different column counts to find optimal layout
-      let bestColumns = gridConfig.columns;
-      let maxArea = 0;
+      const newRows = currentSet && sets[currentSet]?.max_rows
+        ? sets[currentSet].max_rows!
+        : Math.floor(availableHeight / (screenWidth / targetCols / (16/9)));
       
-      for (let cols = 1; cols <= 8; cols++) {
-        const rows = Math.floor(availableHeight / (screenWidth / cols / videoAspectRatio));
-        if (rows === 0) continue;
-        
-        const cellWidth = screenWidth / cols;
-        const cellHeight = cellWidth / videoAspectRatio;
-        const totalArea = cols * rows * cellWidth * cellHeight;
-        
-        if (totalArea > maxArea && rows >= 1) {
-          maxArea = totalArea;
-          bestColumns = cols;
-        }
-      }
-      
-      const newRows = Math.floor(availableHeight / (screenWidth / bestColumns / videoAspectRatio));
-      
-      setGridConfig({ columns: bestColumns, rows: newRows });
-      setGridStyle({
-        gridTemplateColumns: `repeat(${bestColumns}, 1fr)`
+      setGridConfig({ 
+        columns: targetCols, 
+        rows: newRows 
       });
     };
 
@@ -97,7 +82,7 @@ function App() {
       clearTimeout(resizeTimer);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [currentSet, sets]); // Re-calculate when set changes
 
   // Load initial data
   useEffect(() => {
@@ -109,7 +94,7 @@ function App() {
         setCameras(cams.map((cam: any) => ({
           ...cam,
           _m: `${cam.id}_main`,
-          _s: `${cam.sub_url === cam.main_url ? '_main' : '_sub'}`,
+          _s: cam.sub_url && cam.sub_url !== cam.main_url ? '_sub' : '_main',
         })));
         
         const setsObj = setsData.sets || {};
@@ -118,7 +103,7 @@ function App() {
         const defaultSet = setsData.default_set || Object.keys(setsObj)[0] || '';
         setCurrentSet(defaultSet);
         
-        // Обновляем конфигурацию сетки
+        // Initialize grid from set config
         if (setsObj[defaultSet]) {
           setGridConfig({
             columns: setsObj[defaultSet].max_columns || 2,
@@ -158,7 +143,7 @@ function App() {
   }, []);
 
   // Handle set change
-  const handleSetChange = async (setId: string) => {
+  const handleSetChange = (setId: string) => {
     setCurrentSet(setId);
     const setData = sets[setId];
     if (setData) {
@@ -257,7 +242,7 @@ function App() {
           <>
             <div 
               className="grid"
-              style={gridStyle}
+              style={{ gridTemplateColumns: `repeat(${gridConfig.columns}, 1fr)` }}
             >
               {finalCameras.map((camera) => (
                 <StreamCard
