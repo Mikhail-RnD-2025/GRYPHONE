@@ -7,10 +7,17 @@ main.py
 """
 import asyncio
 import logging
+import mimetypes
 import os
 import sys
 from pathlib import Path
 from quart import Quart
+
+# Явная регистрация MIME-типов для корректной отдачи JS/CSS
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('image/svg+xml', '.svg')
+mimetypes.add_type('application/json', '.json')
 
 # ==========================================================================
 # ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ДЛЯ WINDOWS (Python 3.10+)
