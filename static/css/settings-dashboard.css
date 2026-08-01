@@ -1,0 +1,256 @@
+/* ==========================================================================
+   Дашборд: карточки, фильтры, список камер, системные метрики
+   ========================================================================== */
+
+#dashboard-content { display: flex; flex-direction: column; gap: 12px; }
+
+.dash-header-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.dash-card,
+.stat-bar-card {
+    background: #111418;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    position: relative;
+    transition: border-color 0.2s, opacity 0.2s;
+}
+
+.dash-card-header,
+.stat-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.dash-card h3,
+.stat-bar-card h3 {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.dash-card h3::after,
+.stat-bar-card h3::after {
+    content: ':';
+    margin-right: 4px;
+}
+
+.dash-card .val,
+.stat-bar-card .stat-val {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+}
+.dash-card .val.ok { color: var(--ok); }
+.dash-card .val.err { color: var(--err); }
+.dash-card .val.warn { color: var(--warn); }
+
+/* Прогресс-бар в строку */
+.stat-bar-card .progress-bg {
+    height: 6px;
+    background: #0f172a;
+    border-radius: 3px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 60px;
+    margin-left: 8px;
+}
+.stat-bar-card .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.progress-fill.cpu { background: #3b82f6; }
+.progress-fill.ram { background: #f59e0b; }
+.progress-fill.disk { background: #a855f7; }
+
+/* Фильтры по статусу */
+.dash-card.filter-active {
+    border-color: #60a5fa;
+    background: linear-gradient(135deg, #111418 0%, #172033 100%);
+}
+.dash-card.filter-inactive { opacity: 0.5; border-color: #1e293b; }
+
+.filter-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    cursor: pointer;
+    user-select: none;
+}
+.filter-toggle input[type="checkbox"] {
+    position: absolute; opacity: 0; width: 0; height: 0;
+}
+.filter-check {
+    width: 18px; height: 18px;
+    border: 2px solid #475569;
+    border-radius: 4px;
+    background: transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.filter-check::after {
+    content: '';
+    width: 10px; height: 10px;
+    background: currentColor;
+    clip-path: polygon(14% 44%, 0% 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s ease;
+    color: #22c55e;
+}
+.filter-toggle input[type="checkbox"]:checked + .filter-check {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: #22c55e;
+}
+.filter-toggle input[type="checkbox"]:checked + .filter-check::after {
+    opacity: 1; transform: scale(1);
+}
+.filter-toggle:hover .filter-check {
+    border-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+}
+.dash-card[data-status="ok"] .filter-check::after { color: var(--ok); }
+.dash-card[data-status="err"] .filter-check::after { color: var(--err); }
+.dash-card[data-status="disabled"] .filter-check::after { color: var(--disabled); }
+
+.filter-notice {
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px dashed rgba(245, 158, 11, 0.3);
+    border-radius: 6px;
+    color: #fbbf24;
+    font-size: 0.8rem;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+/* Поиск */
+.dash-toolbar { flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
+.dash-search {
+    flex: 1;
+    padding: 8px 12px;
+    background: #111418;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.85rem;
+    outline: none;
+    transition: 0.2s;
+}
+.dash-search:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+.dash-search::placeholder { color: #64748b; }
+
+/* Список камер */
+.cam-list {
+    flex: 1;
+    min-height: 0;
+    background: #0f172a;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: auto;
+    display: block;
+}
+.cam-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #1e293b;
+    gap: 12px;
+    min-width: 100%;
+}
+.cam-row:last-child { border-bottom: none; }
+.cam-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 4px rgba(34, 197, 94, 0.5); }
+.dot.err { background: var(--err); box-shadow: 0 0 4px rgba(239, 68, 68, 0.5); }
+.dot.disabled { background: var(--disabled); box-shadow: 0 0 4px rgba(100, 116, 139, 0.5); }
+.cam-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.badge {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid var(--border);
+    margin-left: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+.cam-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+.cam-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: #cbd5e1;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.cam-toggle-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.cam-toggle-btn.btn-off { border-color: var(--err); color: var(--err); }
+.cam-toggle-btn.btn-off:hover { background: rgba(239, 68, 68, 0.1); }
+.cam-toggle-btn.btn-on { border-color: var(--ok); color: var(--ok); }
+.cam-toggle-btn.btn-on:hover { background: rgba(34, 197, 94, 0.1); }
+
+.sys-stats-footer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+    .dash-header-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+    .cam-row { padding: 6px 10px; gap: 8px; }
+    .badge { font-size: 0.65rem; padding: 2px 6px; }
+    .cam-toggle-btn { padding: 4px 8px; font-size: 0.7rem; }
+    .sys-stats-footer { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+    .dash-header-grid { grid-template-columns: 1fr 1fr; }
+}

@@ -1,0 +1,51 @@
+<div id="dashboard-content" class="tab-panel {% if active_tab != 'dashboard' %}hidden{% endif %}">
+    <div class="dash-header-grid">
+        <div class="dash-card filter-active" data-status="all">
+            <div class="dash-card-header">
+                <h3>📹 Всего</h3>
+                <div class="val" id="d-total">0</div>
+            </div>
+        </div>
+
+        <div class="dash-card filter-active" data-status="ok">
+            <div class="dash-card-header">
+                <h3>🟢 В сети</h3>
+                <div class="val ok" id="d-online">0</div>
+                <label class="filter-toggle" title="Показать/скрыть камеры в сети">
+                    <input type="checkbox" class="status-filter" data-status="ok" checked>
+                    <span class="filter-check"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="dash-card filter-active" data-status="err">
+            <div class="dash-card-header">
+                <h3>🔴 Ошибка/Недоступна</h3>
+                <div class="val err" id="d-err">0</div>
+                <label class="filter-toggle" title="Показать/скрыть камеры с ошибками">
+                    <input type="checkbox" class="status-filter" data-status="err" checked>
+                    <span class="filter-check"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="dash-card filter-active" data-status="disabled">
+            <div class="dash-card-header">
+                <h3>🔌 Отключено</h3>
+                <div class="val warn" id="d-off">0</div>
+                <label class="filter-toggle" title="Показать/скрыть отключённые камеры">
+                    <input type="checkbox" class="status-filter" data-status="disabled" checked>
+                    <span class="filter-check"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="filter-notice" class="filter-notice" style="display:none;"></div>
+
+    <div class="dash-toolbar">
+        <input type="text" id="cam-search" class="dash-search" placeholder="🔍 Поиск камер...">
+    </div>
+    <div id="cam-list-box" class="cam-list"></div>
+    <div class="sys-stats-footer" id="sys-footer"></div>
+</div>

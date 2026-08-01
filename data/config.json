@@ -1,0 +1,93 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 5000
+  },
+  "paths": {
+    "hls_cache": "hls_cache"
+  },
+  "ffmpeg": {
+    "mode": "auto",
+    "logging": {
+      "level": "info",
+      "stats_period": 1,
+      "hide_banner": true,
+      "generate_report": false
+    },
+    "global": {
+      "transport": "tcp",
+      "buffer_mode": "nobuffer",
+      "error_detection": "ignore_err",
+      "threads": 0,
+      "probe_timeout": 3,
+      "probe_analyze_duration": 1000000,
+      "probe_size": 1000000,
+      "hls_time": 2,
+      "hls_list_size": 6,
+      "hls_flags": "delete_segments+temp_file+program_date_time+split_by_time+independent_segments+append_list",
+      "hls_segment_type": "fmp4",
+      "hls_fmp4_init_filename": "init.mp4",
+      "flush_packets": true,
+      "rtsp_connect_timeout": 8,
+      "startup_timeout": 10.0,
+      "startup_check_interval": 0.5,
+      "startup_min_m3u8_size": 50
+    },
+    "hls_player": {
+      "maxBufferLength": 2,
+      "maxMaxBufferLength": 4,
+      "maxBufferSizeMB": 8,
+      "backBufferLength": 0,
+      "liveSyncDuration": 0.5,
+      "liveMaxLatencyDuration": 1.5
+    },
+    "copy": {
+      "note": "Прямой поток"
+    },
+    "transcode": {
+      "gpu_encoder": "auto",
+      "video_bitrate": "2500k",
+      "video_maxrate": "4000k",
+      "video_bufsize": "8000k",
+      "gop_size": 30,
+      "keyint_min": 30,
+      "audio_bitrate": "48k",
+      "pix_fmt": "yuv420p",
+      "preset": "ultrafast",
+      "tune": "zerolatency"
+    }
+  },
+  "app": {
+    "backoff_max": 30,
+    "host_check_timeout": 5.0,
+    "stable_runtime_threshold": 60,
+    "gpu_fallback_threshold": 5.0,
+    "cleanup_min_file_size": 512,
+    "default_set": ""
+  },
+  "cleanup": {
+    "enabled": true,
+    "interval_seconds": 300,
+    "max_age_hours": 24
+  },
+  "performance": {
+    "probe_workers": 32,
+    "sse_interval": 1.0
+  },
+  "archive": {
+    "enabled": true,
+    "poll_interval_sec": 2,
+    "pools": [
+      {
+        "id": "pool_main",
+        "path": "archive_main",
+        "max_size_gb": 50
+      },
+      {
+        "id": "pool_backup",
+        "path": "archive_backup",
+        "max_size_gb": 20
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+<div id="helpModal">
+    <div class="modal">
+        <span class="close" onclick="document.getElementById('helpModal').style.display='none'">&times;</span>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px">
+            <h2 style="margin:0">📖 RTSP Viewer v14.0.2 — Справка</h2>
+            <span style="background:var(--ok);color:#0b0d10;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600">ASGI</span>
+        </div>
+        <nav style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <a href="#h-intro" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">🏠 Введение</a>
+            <a href="#h-config" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">⚙️ Конфиг</a>
+            <a href="#h-cameras" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📹 Камеры</a>
+            <a href="#h-sets" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📦 Наборы</a>
+            <a href="#h-examples" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📝 Примеры</a>
+            <a href="#h-faq" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">🛠️ FAQ</a>
+        </nav>
+        <div style="line-height:1.65;color:var(--text);font-size:0.9rem">
+            <section id="h-intro">
+                <h3 style="color:#60a5fa">🏠 Архитектура</h3>
+                <p>Проект работает на <b>Quart (ASGI)</b> с нативным <code>asyncio</code>-циклом. Потоки: <b>FFmpeg → fMP4 HLS → hls.js</b>.</p>
+                <div style="background:#111418;border-left:4px solid var(--ok);padding:10px;border-radius:6px;margin:10px 0">✅ <b>Особенности:</b> асинхронность, 3-stage fallback (GPU→CPU), изоляция кэша, graceful shutdown.</div>
+            </section>
+            <section id="h-config">
+                <h3 style="color:#60a5fa">⚙️ Конфигурация</h3>
+                <p><b>HLS fMP4:</b> <code>hls_segment_type: "fmp4"</code>, <code>hls_time: 2</code>, <code>hls_list_size: 6</code>. Флаги: <code>delete_segments+temp_file+program_date_time+split_by_time+append_list</code>.</p>
+                <p><b>GPU/CPU:</b> <code>gpu_encoder: "auto"</code> → NVENC → QSV → AMF → libx264. Параметры: <code>video_bitrate: "2500k"</code>, <code>gop_size: 30</code>, <code>pix_fmt: "yuv420p"</code>.</p>
+            </section>
+            <section id="h-cameras">
+                <h3 style="color:#60a5fa">📹 Камеры</h3>
+                <p>Массив JSON. Обязательные поля: <code>id</code>, <code>main_url</code>. Опционально: <code>sub_url</code>, <code>enabled</code>, <code>comment</code>. ID нельзя менять после создания.</p>
+            </section>
+            <section id="h-sets">
+                <h3 style="color:#60a5fa">📦 Наборы</h3>
+                <p>Группировка камер в сетки. Поля: <code>name</code>, <code>camera_ids</code>, <code>aspect_ratio</code> (16:9/4:3/9:16), <code>max_columns</code>, <code>max_rows</code> (0=авто).</p>
+            </section>
+            <section id="h-examples">
+                <h3 style="color:#60a5fa">📝 Примеры RTSP URL</h3>
+                <ul style="margin:8px 0 12px 20px;font-size:0.85rem">
+                    <li><b>Hikvision:</b> <code>rtsp://u:p@ip:554/Streaming/Channels/101</code> (Main), <code>102</code> (Sub)</li>
+                    <li><b>Dahua:</b> <code>rtsp://u:p@ip:554/cam/realmonitor?channel=1&subtype=0</code></li>
+                    <li><b>ONVIF Generic:</b> <code>rtsp://u:p@ip:554/live.sdp</code></li>
+                </ul>
+            </section>
+            <section id="h-faq">
+                <h3 style="color:#60a5fa">🛠️ FAQ</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:8px">
+                    <tr style="background:#1e293b"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Симптом</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Решение</th></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">⏳ Вечное "Подключение..."</td><td style="padding:8px;border-bottom:1px solid var(--border)">Проверьте URL в VLC. Увеличьте <code>startup_timeout</code> до 20.</td></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🔴 "All 3 stages failed"</td><td style="padding:8px;border-bottom:1px solid var(--border)">Установите <code>"mode":"transcode"</code>, <code>"gpu_encoder":"libx264"</code>.</td></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">⚠️ PermissionError</td><td style="padding:8px;border-bottom:1px solid var(--border)">Добавьте папку проекта в исключения Windows Defender.</td></tr>
+                    <tr><td style="padding:8px">🐌 Задержка >5 сек</td><td style="padding:8px">Уменьшите <code>hls_time</code> до 2, <code>liveSyncDuration</code> до 0.5.</td></tr>
+                </table>
+                <div style="margin-top:12px;padding:10px;background:#1e3a8a;border-radius:6px;border-left:4px solid #3b82f6">💡 Для 10+ камер: <code>hls_time: 4</code>, отключите <code>split_by_time</code>. Снижает IOPS диска на ~40%.</div>
+            </section>
+        </div>
+    </div>
+</div>

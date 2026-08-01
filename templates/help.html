@@ -1,0 +1,222 @@
+<!-- templates/help.html -->
+<div id="helpModal">
+    <div class="modal" style="max-width:1100px">
+        <span class="close" onclick="document.getElementById('helpModal').style.display='none'">&times;</span>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px">
+            <h2 style="margin:0">📖 RTSP Viewer v14.0.2 — Полная справка</h2>
+            <span style="background:var(--ok);color:#0b0d10;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600">ASGI</span>
+        </div>
+
+        <nav style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <a href="#intro" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">🏠 Введение</a>
+            <a href="#config" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">⚙️ Конфиг</a>
+            <a href="#cameras" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📹 Камеры</a>
+            <a href="#sets" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📦 Наборы</a>
+            <a href="#logs" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📜 Логи</a>
+            <a href="#dashboard" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📊 Дашборд</a>
+            <a href="#archive" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📼 Архив</a>
+            <a href="#examples" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">📝 Примеры</a>
+            <a href="#faq" style="color:var(--link);text-decoration:none;padding:4px 8px;border-radius:4px;font-size:0.85rem">🛠️ FAQ</a>
+        </nav>
+
+        <div style="line-height:1.65;color:var(--text);font-size:0.9rem">
+            <section id="intro">
+                <h3 style="color:#60a5fa">🏠 Архитектура и принципы работы</h3>
+                <p>Проект работает на <b>Quart (ASGI)</b> с нативным <code>asyncio</code>-циклом. Видеопотоки транслируются через <b>FFmpeg → fMP4 HLS</b> и воспроизводятся в браузере через <b>hls.js</b>.</p>
+                <div style="background:#111418;border-left:4px solid var(--ok);padding:10px;border-radius:6px;margin:10px 0">
+                    ✅ <b>Ключевые особенности:</b> асинхронная обработка, 3-ступенчатый fallback кодировщиков (GPU → GPU alt → CPU), изоляция кэша по камерам, атомарное обновление конфигов, graceful shutdown.
+                </div>
+            </section>
+
+            <section id="config">
+                <h3 style="color:#60a5fa">⚙️ Конфигурация системы</h3>
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">🌐 Server & Paths</summary>
+                    <div style="padding:12px">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+                            <tr style="background:#1e293b"><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">Параметр</th><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">Значение</th><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">Описание</th></tr>
+                            <tr><td style="padding:6px;border-bottom:1px solid var(--border)"><code>server.host</code></td><td style="padding:6px;border-bottom:1px solid var(--border)"><code>"0.0.0.0"</code></td><td style="padding:6px;border-bottom:1px solid var(--border)">Привязка интерфейса (LAN: <code>192.168.x.x</code>, Local: <code>127.0.0.1</code>)</td></tr>
+                            <tr><td style="padding:6px;border-bottom:1px solid var(--border)"><code>server.port</code></td><td style="padding:6px;border-bottom:1px solid var(--border)"><code>5000</code></td><td style="padding:6px;border-bottom:1px solid var(--border)">HTTP-порт Quart</td></tr>
+                            <tr><td style="padding:6px"><code>paths.hls_cache</code></td><td style="padding:6px"><code>"hls_cache"</code></td><td style="padding:6px">Папка для сегментов. <b>Не меняйте вручную</b>, используется воркерами.</td></tr>
+                        </table>
+                    </div>
+                </details>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">🎥 FFmpeg Global & HLS</summary>
+                    <div style="padding:12px">
+                        <p><b>Ключевые флаги для fMP4:</b></p>
+                        <ul style="margin:8px 0 16px 20px">
+                            <li><code>hls_segment_type: "fmp4"</code> → современный формат, быстрее инициализация, меньше нагрузка на CPU.</li>
+                            <li><code>hls_flags</code> → <code>delete_segments+temp_file+program_date_time+split_by_time+append_list</code>. <b>Не добавляйте</b> <code>low_latency</code> (нестабильно в FFmpeg < 6.0).</li>
+                            <li><code>hls_time</code> → длительность сегмента (2–4 сек). Меньше = ниже задержка, больше = стабильнее сеть.</li>
+                            <li><code>hls_list_size</code> → кол-во сегментов в плейлисте. Оптимально: 5–8.</li>
+                        </ul>
+                        <div style="background:#7c2d12;padding:8px;border-radius:6px;border-left:3px solid var(--err)">⚠️ При смене <code>hls_segment_type</code> очистите папку <code>hls_cache</code> вручную!</div>
+                    </div>
+                </details>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">⚡ Transcode & GPU</summary>
+                    <div style="padding:12px">
+                        <p>Система автоматически определяет доступный энкодер. Логика fallback:</p>
+                        <ol style="margin:8px 0 12px 20px">
+                            <li><b>Stage 0:</b> Авто-определение (NVENC → QSV → AMF)</li>
+                            <li><b>Stage 1:</b> GPU с программным декодированием (если HW-decode не поддерживается)</li>
+                            <li><b>Stage 2:</b> Чистый CPU (<code>libx264</code>)</li>
+                        </ol>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:8px">
+                            <tr style="background:#1e293b"><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">Параметр</th><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">Рекомендация</th></tr>
+                            <tr><td style="padding:6px;border-bottom:1px solid var(--border)"><code>gpu_encoder</code></td><td style="padding:6px;border-bottom:1px solid var(--border)"><code>"auto"</code> / <code>"h264_nvenc"</code> / <code>"h264_qsv"</code> / <code>"libx264"</code></td></tr>
+                            <tr><td style="padding:6px;border-bottom:1px solid var(--border)"><code>video_bitrate</code></td><td style="padding:6px;border-bottom:1px solid var(--border)"><code>"2500k"</code> (1080p), <code>"1500k"</code> (720p)</td></tr>
+                            <tr><td style="padding:6px;border-bottom:1px solid var(--border)"><code>gop_size</code></td><td style="padding:6px;border-bottom:1px solid var(--border)">Равен FPS (30 для 30fps). Критично для HLS!</td></tr>
+                            <tr><td style="padding:6px"><code>pix_fmt</code></td><td style="padding:6px"><code>"yuv420p"</code> (единственный стабильный для браузеров)</td></tr>
+                        </table>
+                    </div>
+                </details>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">📺 HLS.js Player Tuning</summary>
+                    <div style="padding:12px">
+                        <p>Настройки влияют только на браузерный плеер. Баланс между задержкой и буферизацией:</p>
+                        <ul style="margin:8px 0 12px 20px">
+                            <li><code>maxBufferLength: 3</code> → буфер в секундах. Меньше = быстрее реакция на обрыв.</li>
+                            <li><code>liveSyncDuration: 0.5</code> → отставание от реального времени. 0.3–0.8 для камер.</li>
+                            <li><code>backBufferLength: 0</code> → очищает старые сегменты из памяти браузера.</li>
+                        </ul>
+                    </div>
+                </details>
+            </section>
+
+            <section id="cameras">
+                <h3 style="color:#60a5fa">📹 Управление камерами</h3>
+                <p>Массив объектов в формате JSON. Валидация строгая: недопустимые ID/URL игнорируются.</p>
+                <pre style="background:#0b0d10;padding:10px;border-radius:6px;overflow-x:auto;border:1px solid var(--border)"><code>[
+  {
+    "id": "cam_01",
+    "name": "Парковка Вход",
+    "main_url": "rtsp://admin:pass@192.168.1.50:554/stream1",
+    "sub_url": "",
+    "enabled": true,
+    "comment": "Основной поток, 1080p 25fps"
+  }
+]</code></pre>
+                <ul style="margin:10px 0 16px 20px;font-size:0.85rem">
+                    <li><code>id</code> → уникален, только латиница/цифры/подчёркивание. <b>Не меняйте после создания</b> (сломает пути к кэшу и архиву).</li>
+                    <li><code>sub_url</code> → если пусто, берётся <code>main_url</code>. Используйте для low-latency sub-потоков.</li>
+                    <li><code>enabled</code> → <code>true</code>/`false`. Отключение мгновенно останавливает FFmpeg-воркер.</li>
+                </ul>
+            </section>
+
+            <section id="sets">
+                <h3 style="color:#60a5fa">📦 Наборы (Layouts)</h3>
+                <p>Группировка камер в сетки для разных сценариев мониторинга.</p>
+                <pre style="background:#0b0d10;padding:10px;border-radius:6px;overflow-x:auto;border:1px solid var(--border)"><code>{
+  "default_set": "main_hall",
+  "sets": {
+    "main_hall": {
+      "name": "Главный зал",
+      "camera_ids": ["cam_01", "cam_02", "cam_03"],
+      "aspect_ratio": "16:9",
+      "max_columns": 2,
+      "max_rows": 2
+    }
+  }
+}</code></pre>
+                <ul style="margin:10px 0 16px 20px;font-size:0.85rem">
+                    <li><code>aspect_ratio</code> → <code>16:9</code>, <code>4:3</code>, <code>9:16</code> (вертикальные камеры).</li>
+                    <li><code>max_rows</code> = 0 → авто-расчёт по количеству камер.</li>
+                    <li>Камеры отображаются строго в порядке <code>camera_ids</code>.</li>
+                </ul>
+            </section>
+
+            <section id="logs">
+                <h3 style="color:#60a5fa">📜 Логи FFmpeg</h3>
+                <p>Вкладка собирает <code>stderr</code> каждого процесса FFmpeg и парсит метрики регуляркой:</p>
+                <pre style="background:#0b0d10;padding:8px;border-radius:4px;font-size:0.8rem;color:#cbd5e1;border:1px solid var(--border)">frame= 125 fps= 25.1 q=-1.0 size=   1534kB time=00:00:05.00 bitrate=2512.3kbits/s</pre>
+                <div style="margin:10px 0">
+                    <span style="color:var(--ok)">✅</span> Стабильный <code>fps</code> и растущий <code>time</code> → поток активен.<br>
+                    <span style="color:var(--err)">❌</span> <code>Connection refused</code> / <code>Invalid data found</code> → камера недоступна или URL неверен.<br>
+                    <span style="color:var(--warn)">⚠️</span> <code>Past duration too large</code> → джиттер камеры. Увеличьте <code>hls_time</code> до 4.
+                </div>
+            </section>
+
+            <section id="dashboard">
+                <h3 style="color:#60a5fa">📊 Дашборд</h3>
+                <p>Показывает состояние системы в реальном времени через SSE (<code>/api/stream_status</code>). Обновляется каждые 1 сек.</p>
+                <ul style="margin:8px 0 16px 20px;font-size:0.85rem">
+                    <li>🟢 <b>Online</b> → FFmpeg активен, HLS плейлист генерируется.</li>
+                    <li>🔴 <b>Error</b> → все 3 стадии запуска FFmpeg провалились.</li>
+                    <li>🔌 <b>Offline/Disabled</b> → камера выключена в конфиге.</li>
+                    <li>⚡/💾/💽 → метрики хоста (требует <code>pip install psutil</code>).</li>
+                </ul>
+            </section>
+
+            <section id="archive">
+                <h3 style="color:#60a5fa">📼 Архив</h3>
+                <p>Автоматическое копирование готовых <code>.m4s</code> сегментов из кэша в пулы хранения.</p>
+                <ul style="margin:8px 0 16px 20px;font-size:0.85rem">
+                    <li>Полы определяются в <code>archive.pools</code>. Каждый пул: <code>id</code>, <code>path</code>, <code>max_size_gb</code>.</li>
+                    <li>Файлы переименовываются в <code>{mtime}_{original_name}.m4s</code> для хронологической сортировки.</li>
+                    <li>При превышении квоты удаляются самые старые записи + соответствующие <code>init_*.mp4</code>.</li>
+                    <li>⚠️ Архив работает только с <code>hls_segment_type: "fmp4"</code>.</li>
+                </ul>
+            </section>
+
+            <section id="examples">
+                <h3 style="color:#60a5fa">📝 Готовые примеры конфига</h3>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">🖥️ Режим 1: Низкая задержка (LAN, мощный ПК)</summary>
+                    <pre style="margin:10px;background:#0b0d10;padding:10px;border-radius:6px;font-size:0.8rem;overflow-x:auto"><code>"global": {
+  "hls_time": 1, "hls_list_size": 5,
+  "hls_segment_type": "fmp4", "flush_packets": true,
+  "rtsp_connect_timeout": 5, "startup_timeout": 10
+},
+"hls_player": {
+  "maxBufferLength": 2, "liveSyncDuration": 0.3,
+  "backBufferLength": 0
+}</code></pre>
+                </details>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">🌐 Режим 2: Стабильность (WAN, слабая сеть)</summary>
+                    <pre style="margin:10px;background:#0b0d10;padding:10px;border-radius:6px;font-size:0.8rem;overflow-x:auto"><code>"global": {
+  "hls_time": 4, "hls_list_size": 8,
+  "hls_segment_type": "fmp4", "flush_packets": true,
+  "rtsp_connect_timeout": 10, "startup_timeout": 20
+},
+"hls_player": {
+  "maxBufferLength": 6, "liveSyncDuration": 1.5,
+  "backBufferLength": 20
+}</code></pre>
+                </details>
+
+                <details style="margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                    <summary style="background:#0f172a;padding:10px;cursor:pointer;font-weight:600">📹 RTSP URL форматы</summary>
+                    <ul style="margin:10px 0 10px 20px;font-size:0.85rem">
+                        <li><b>Hikvision:</b> <code>rtsp://user:pass@ip:554/Streaming/Channels/101</code> (Main), <code>102</code> (Sub)</li>
+                        <li><b>Dahua:</b> <code>rtsp://user:pass@ip:554/cam/realmonitor?channel=1&subtype=0</code></li>
+                        <li><b>Axis:</b> <code>rtsp://user:pass@ip:554/axis-media/media.amp?streamprofile=Quality</code></li>
+                        <li><b>ONVIF Generic:</b> <code>rtsp://user:pass@ip:554/live.sdp</code></li>
+                    </ul>
+                </details>
+            </section>
+
+            <section id="faq">
+                <h3 style="color:#60a5fa">🛠️ FAQ & Устранение неполадок</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:8px">
+                    <tr style="background:#1e293b"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Симптом</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Решение</th></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">⏳ Вечный статус "Подключение..."</td><td style="padding:8px;border-bottom:1px solid var(--border)">Проверьте URL в VLC. Увеличьте <code>startup_timeout</code> до 20. Проверьте фаервол.</td></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🔴 "All 3 stages failed"</td><td style="padding:8px;border-bottom:1px solid var(--border)">FFmpeg не может декодировать поток. Установите <code>"mode": "transcode"</code> и <code>"gpu_encoder": "libx264"</code> для теста.</td></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">⚠️ "PermissionError" в логах</td><td style="padding:8px;border-bottom:1px solid var(--border)">Windows Defender блокирует запись. Добавьте папку проекта в исключения антивируса.</td></tr>
+                    <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🐌 Высокая задержка (>5 сек)</td><td style="padding:8px;border-bottom:1px solid var(--border)">Уменьшите <code>hls_time</code> до 2, <code>liveSyncDuration</code> до 0.5. Убедитесь, что браузер не кеширует <code>index.m3u8</code>.</td></tr>
+                    <tr><td style="padding:8px">📦 Архив не пишет файлы</td><td style="padding:8px">Проверьте права на папку пула. Убедитесь, что <code>hls_segment_type: "fmp4"</code>. Проверьте логи на ошибки <code>❌ init copy failed</code>.</td></tr>
+                </table>
+                <div style="margin-top:16px;padding:10px;background:#1e3a8a;border-radius:6px;border-left:4px solid #3b82f6">
+                    💡 <b>Совет по производительности:</b> Для 10+ камер используйте <code>hls_time: 4</code> и отключите <code>hls_flags: split_by_time</code>. Это снизит IOPS диска на 40%.
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

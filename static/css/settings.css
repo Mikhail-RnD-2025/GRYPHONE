@@ -1,0 +1,87 @@
+/* ==========================================================================
+   Настройки: обёртка, вкладки, панели, контролы
+   ========================================================================== */
+
+.settings-wrap {
+    padding: calc(var(--header-h) + 12px) 16px 16px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+    padding: 8px 14px;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    color: #94a3b8;
+    transition: 0.2s;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+.tab:hover { color: #cbd5e1; }
+.tab.active {
+    background: #1e293b;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    margin-bottom: -1px;
+}
+
+.tab-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.tab-panel.hidden { display: none !important; }
+
+/* CodeMirror контейнер */
+.cm-container {
+    flex: 1;
+    min-height: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+.CodeMirror { height: 100% !important; background: #0b0d10 !important; border: none !important; font-size: 14px; }
+.cm-container .CodeMirror-gutters { background: #111418 !important; border-right: 1px solid var(--border) !important; }
+
+/* Панель управления JSON */
+#controls-area {
+    display: none;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+#v-msg { margin-top: 4px; font-size: 0.8rem; width: 100%; }
+
+@media (max-width: 1024px) {
+    .settings-wrap { padding-left: 12px; padding-right: 12px; }
+}
+@media (max-width: 768px) {
+    header { padding: 0 12px; }
+    h1 { font-size: 0.9rem; }
+    .tab { padding: 6px 10px; font-size: 0.8rem; }
+    .settings-wrap {
+        padding-top: calc(var(--header-h) + 8px);
+        padding-left: 8px;
+        padding-right: 8px;
+        gap: 8px;
+    }
+    #controls-area { flex-direction: column; }
+    #controls-area button { width: 100%; }
+}
+@media (max-width: 480px) {
+    .tab { flex: 1; text-align: center; }
+}
