@@ -44,6 +44,60 @@ function App() {
   const [stats, setStats] = useState<StreamStats>({});
   const [loading, setLoading] = useState(true);
   const [gridConfig, setGridConfig] = useState({ columns: 2, rows: 0 });
+  const [gridStyle, setGridStyle] = useState<{ gridTemplateColumns: string }>({ gridTemplateColumns: '' });
+
+  // Calculate grid dimensions based on screen size
+  useEffect(() => {
+    const calculateGrid = () => {
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      const headerHeight = 60; // approximate header height
+      const availableHeight = screenHeight - headerHeight;
+      
+      // Assume 16:9 aspect ratio for videos
+      const videoAspectRatio = 16 / 9;
+      
+      // Try different column counts to find optimal layout
+      let bestColumns = gridConfig.columns;
+      let maxArea = 0;
+      
+      for (let cols = 1; cols <= 8; cols++) {
+        const rows = Math.floor(availableHeight / (screenWidth / cols / videoAspectRatio));
+        if (rows === 0) continue;
+        
+        const cellWidth = screenWidth / cols;
+        const cellHeight = cellWidth / videoAspectRatio;
+        const totalArea = cols * rows * cellWidth * cellHeight;
+        
+        if (totalArea > maxArea && rows >= 1) {
+          maxArea = totalArea;
+          bestColumns = cols;
+        }
+      }
+      
+      const newRows = Math.floor(availableHeight / (screenWidth / bestColumns / videoAspectRatio));
+      
+      setGridConfig({ columns: bestColumns, rows: newRows });
+      setGridStyle({
+        gridTemplateColumns: `repeat(${bestColumns}, 1fr)`
+      });
+    };
+
+    calculateGrid();
+    
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(calculateGrid, 150);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -203,9 +257,7 @@ function App() {
           <>
             <div 
               className="grid"
-              style={{
-                gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(320px, 1fr))`
-              }}
+              style={gridStyle}
             >
               {finalCameras.map((camera) => (
                 <StreamCard

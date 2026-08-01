@@ -1,57 +1,66 @@
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: #0f172a;
+  overflow: hidden;
 }
 
 .app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  background: rgba(15, 23, 42, 0.8);
-  border-bottom: 1px solid #334155;
-  position: sticky;
-  top: 0;
+  padding: 12px 16px;
+  background: transparent;
   z-index: 100;
-  backdrop-filter: blur(8px);
+  pointer-events: none;
 }
 
 .app-header h1 {
-  font-size: 1.5rem;
-  color: #e0e3e8;
+  font-size: 1.3rem;
+  color: rgba(224, 227, 232, 0.9);
   margin: 0;
   font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  pointer-events: auto;
 }
 
 .header-controls {
   display: flex;
   align-items: center;
   gap: 12px;
+  pointer-events: auto;
 }
 
 .set-selector {
-  background: #1e293b;
-  color: #e0e3e8;
-  border: 1px solid #334155;
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(8px);
+  color: rgba(224, 227, 232, 0.9);
+  border: 1px solid rgba(51, 65, 85, 0.6);
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 0.9rem;
   cursor: pointer;
   outline: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .set-selector:hover {
-  border-color: #475569;
+  border-color: rgba(71, 85, 105, 0.9);
+  background: rgba(30, 41, 59, 0.95);
 }
 
 .settings-link {
-  color: #cbd5e1;
+  color: rgba(203, 213, 225, 0.9);
   font-size: 1.3rem;
   text-decoration: none;
   padding: 4px;
   transition: color 0.2s;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .settings-link:hover {
@@ -60,14 +69,18 @@
 
 .grid-container {
   flex: 1;
-  padding: 24px;
-  overflow-y: auto;
+  padding: 2px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
 }
 
 .alert {
@@ -89,7 +102,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  height: 100vh;
   font-size: 1.2rem;
   color: #cbd5e1;
 }
@@ -107,18 +120,18 @@
 
 @media (max-width: 768px) {
   .app-header {
-    padding: 12px 16px;
+    padding: 8px 12px;
   }
 
   .app-header h1 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
 
   .grid-container {
-    padding: 16px;
+    padding: 2px;
   }
 
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 }

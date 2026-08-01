@@ -49,10 +49,44 @@ def register_routes(app):
         """Раздача статических файлов React приложения"""
         if '.' in path:
             # Это файл (JS, CSS, изображения и т.д.)
-            return await send_from_directory(FRONTEND_DIST, path)
+            file_path = FRONTEND_DIST / path
+            if not file_path.is_file():
+                abort(404)
+            
+            # Определяем MIME-тип по расширению
+            mime_types = {
+                '.js': 'application/javascript',
+                '.mjs': 'application/javascript',
+                '.css': 'text/css',
+                '.html': 'text/html',
+                '.json': 'application/json',
+                '.svg': 'image/svg+xml',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.ico': 'image/x-icon',
+                '.woff': 'font/woff',
+                '.woff2': 'font/woff2',
+                '.ttf': 'font/ttf',
+                '.eot': 'application/vnd.ms-fontobject'
+            }
+            suffix = Path(path).suffix.lower()
+            mimetype = mime_types.get(suffix, 'application/octet-stream')
+            
+            return await send_file(file_path, mimetype=mimetype)
         else:
             # Это SPA роутинг - возвращаем index.html
             return await send_from_directory(FRONTEND_DIST, 'index.html')
+
+    # Обработчик для всех остальных путей (SPA роутинг)
+    @app.route('/<path:path>')
+    async def catch_all(path):
+        """Перенаправляет все неизвестные пути на index.html для React Router"""
+        # Если это не API и не HLS путь, отдаем index.html
+        if not path.startswith('api/') and not path.startswith('hls/'):
+            return await send_from_directory(FRONTEND_DIST, 'index.html')
+        abort(404)
 
     @app.route('/api/data')
     async def api_data():
