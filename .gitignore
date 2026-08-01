@@ -1,7 +1,4 @@
 ```
-# Logs
+# Logs and temp files
 *.log
-
-# Dependencies
-node_modules/
 ```
