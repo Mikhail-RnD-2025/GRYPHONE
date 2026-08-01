@@ -299,10 +299,10 @@ async def hls_worker_async(url, route_id, cam_id):
         async with STATE_LOCK:
             STREAM_STATS.pop(route_id, None)
         async with LOGS_LOCK:
-            ASYNC_TASKS.pop(route_id, None)
             FFMPEG_LOGS.setdefault(route_id, deque(maxlen=500)).append(
                 f"[{time.strftime('%H:%M:%S')}] 🧹 Воркер остановлен"
             )
         async with ACTIVE_PROCS_LOCK:
             ACTIVE_PROCS.pop(route_id, None)
+        # ASYNC_TASKS управляется в workers.py, не удаляем здесь
         logger.info(f"🧹 {route_id} cleaned")

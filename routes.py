@@ -108,29 +108,35 @@ def register_routes(app):
         if data is None: return jsonify({"success": False, "msg": "Нет данных"}), 400
         try:
             from config import default_cfg, merge_dicts, sanitize_camera
-            async def _save():
-                async with STATE_LOCK:
-                    merged = default_cfg()
-                    merge_dicts(merged, data)
-                    if f == "cameras":
-                        CAMERAS_DB.clear()
-                        for c in data:
-                            cam = sanitize_camera(c)
-                            if cam: CAMERAS_DB[cam["id"]] = cam
-                        await db.save("cameras", [c for c in CAMERAS_DB.values() if c])
-                        asyncio.create_task(workers.sync_camera_streams())
-                    elif f == "sets":
-                        CAMERA_SETS.clear()
-                        CAMERA_SETS.update(data.get("sets", {}))
-                        CFG["app"]["default_set"] = data.get("default_set", CFG["app"].get("default_set", ""))
-                        await db.save("sets", data)
-                        await db.save("config", CFG)
-                    elif f == "config":
-                        CFG.clear()
-                        CFG.update(merged)
-                        await db.save("config", CFG)
-
-            await _save()
+            # Используем отдельный лок для операций записи конфигурации
+            async with STATE_LOCK:
+                merged = default_cfg()
+                merge_dicts(merged, data)
+                if f == "cameras":
+                    CAMERAS_DB.clear()
+                    for c in data:
+                        cam = sanitize_camera(c)
+                        if cam: CAMERAS_DB[cam["id"]] = cam
+                    await db.save("cameras", [c for c in CAMERAS_DB.values() if c])
+                    # Синхронизация запускается после выхода из блокировки
+                    sync_task = workers.sync_camera_streams()
+                elif f == "sets":
+                    CAMERA_SETS.clear()
+                    CAMERA_SETS.update(data.get("sets", {}))
+                    CFG["app"]["default_set"] = data.get("default_set", CFG["app"].get("default_set", ""))
+                    await db.save("sets", data)
+                    await db.save("config", CFG)
+                    sync_task = None
+                elif f == "config":
+                    CFG.clear()
+                    CFG.update(merged)
+                    await db.save("config", CFG)
+                    sync_task = None
+            
+            # Запускаем синхронизацию вне блокировки
+            if sync_task:
+                asyncio.create_task(sync_task)
+                
             return jsonify({"success": True, "msg": "✅ Сохранено"})
         except Exception as e:
             return jsonify({"success": False, "msg": str(e)}), 500
