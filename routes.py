@@ -19,6 +19,10 @@ import workers
 
 db = DBManager()
 
+# Получаем абсолютный путь к директории проекта
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+
 
 def register_routes(app):
     """Регистрация всех HTTP-маршрутов приложения."""
@@ -33,17 +37,17 @@ def register_routes(app):
     @app.route('/')
     async def react_app():
         """Основная страница React приложения"""
-        return await send_from_directory('../frontend/dist', 'index.html')
+        return await send_from_directory(FRONTEND_DIST, 'index.html')
     
     @app.route('/<path:path>')
     async def react_static(path):
         """Раздача статических файлов React приложения"""
         if '.' in path:
             # Это файл (JS, CSS, изображения и т.д.)
-            return await send_from_directory('../frontend/dist', path)
+            return await send_from_directory(FRONTEND_DIST, path)
         else:
             # Это SPA роутинг - возвращаем index.html
-            return await send_from_directory('../frontend/dist', 'index.html')
+            return await send_from_directory(FRONTEND_DIST, 'index.html')
 
     @app.route('/api/data')
     async def api_data():
