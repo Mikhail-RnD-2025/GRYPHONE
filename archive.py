@@ -41,8 +41,8 @@ async def archive_worker_async():
 
 async def _process_archive():
     """Обработка архивации для всех активных камер."""
-    hls_cache_root = Path(CFG.get("paths", {}).get("hls_cache", "hls_cache"))
-    archive_root = Path(CFG.get("archive", {}).get("root", "archive"))
+    hls_cache_root = Path(CFG.get("paths", {}).get("hls_cache", "hls_cache")).resolve()
+    archive_root = Path(CFG.get("archive", {}).get("root", "archive")).resolve()
 
     if not hls_cache_root.exists():
         return
