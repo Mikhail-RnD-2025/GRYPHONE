@@ -1,47 +1,49 @@
 ```
-# Templates directory (all templates were deleted)
-templates/
+# Dependencies
+node_modules/
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Build artifacts
+dist/
+build/
+*.js.map
 
-# Logs
-*.log
-
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
 
-# Dependencies
-node_modules/
-.venv/
-venv/
-pip-log.txt
-pip-selfcheck.json
-
-# IDE specific
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+.env
+.env.local
+
+# Logs
+*.log
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# Build outputs
-dist/
-build/
-*.egg-info/
+# Coverage
 .coverage
 coverage/
 htmlcov/
 
-# Testing
-.pytest_cache/
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# MyPy
 .mypy_cache/
 ```
