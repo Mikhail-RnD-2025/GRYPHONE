@@ -1,4 +1,4 @@
-# RTSP Viewer v15.0.0 - Dependencies
+# GPYPHONE v15.0.0 - Dependencies
 # Web framework (ASGI)
 quart>=0.21.0
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 main.py
-Точка входа приложения RTSP Viewer v15.0.0 (ASGI/Quart)
+Точка входа приложения GPYPHONE v15.0.0 (ASGI/Quart)
 Отвечает за: инициализацию, загрузку конфига, запуск фоновых задач и HTTP-сервера.
 """
 import asyncio
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 # ==========================================================================
 async def on_startup():
     """Инициализация БД, загрузка конфигов, очистка кэша, запуск фоновых задач."""
-    logger.info("🚀 Инициализация RTSP Viewer...")
+    logger.info("🚀 Инициализация GPYPHONE...")
 
     try:
         # 1. Инициализация базы данных
@@ -94,7 +94,7 @@ async def on_startup():
         asyncio.create_task(archive.archive_worker_async())
 
         # ✅ ОБНОВЛЕННАЯ ВЕРСИЯ
-        logger.info("🚀 RTSP Viewer v15.0.0 (ASGI) успешно запущен!")
+        logger.info("🚀 GPYPHONE v15.0.0 (ASGI) успешно запущен!")
 
     except Exception as e:
         logger.critical(f"❌ Критическая ошибка при запуске: {e}", exc_info=True)
