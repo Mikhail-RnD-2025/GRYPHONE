@@ -1,4 +1,4 @@
-# RTSP Viewer - React Frontend
+# GPYPHONE - React Frontend
 
 Современный фронтенд для системы мониторинга RTSP потоков на базе React + TypeScript + Vite.
 
