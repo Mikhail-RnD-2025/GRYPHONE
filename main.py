@@ -112,6 +112,27 @@ def create_app() -> Quart:
     # Регистрация HTTP/SSE маршрутов
     routes.register_routes(app)
 
+    # Отдача статических файлов React из dist/
+    from quart import send_from_directory
+    
+    @app.route('/assets/<path:filename>')
+    async def serve_assets(filename):
+        return await send_from_directory('frontend/dist/assets', filename)
+    
+    @app.route('/favicon.svg')
+    async def serve_favicon():
+        return await send_from_directory('frontend/dist', 'favicon.svg')
+    
+    @app.route('/icons.svg')
+    async def serve_icons():
+        return await send_from_directory('frontend/dist', 'icons.svg')
+    
+    # Основной маршрут для React SPA
+    @app.route('/react')
+    @app.route('/react/')
+    async def serve_react_app():
+        return await send_from_directory('frontend/dist', 'index.html')
+
     # Привязка функции запуска к событию before_serving
     @app.before_serving
     async def startup_hook():
