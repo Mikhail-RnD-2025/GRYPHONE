@@ -10,7 +10,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from quart import Response, abort, jsonify, redirect, render_template, request, send_file, url_for, send_from_directory
+from quart import Response, abort, jsonify, redirect, request, send_file, url_for, send_from_directory
 from quart_cors import cors
 
 from state import STATE_LOCK, LOGS_LOCK, CFG, CAMERAS_DB, CAMERA_SETS, current_set_id, STREAM_STATS, FFMPEG_LOGS
@@ -30,12 +30,12 @@ def register_routes(app):
     # React App - раздача статики (основной UI)
     # =====================================================
     
-    @app.route('/react-app')
+    @app.route('/')
     async def react_app():
         """Основная страница React приложения"""
         return await send_from_directory('../frontend/dist', 'index.html')
     
-    @app.route('/react-app/<path:path>')
+    @app.route('/<path:path>')
     async def react_static(path):
         """Раздача статических файлов React приложения"""
         if '.' in path:
@@ -44,78 +44,6 @@ def register_routes(app):
         else:
             # Это SPA роутинг - возвращаем index.html
             return await send_from_directory('../frontend/dist', 'index.html')
-
-    # =====================================================
-    # Старые маршруты (для обратной совместимости)
-    # =====================================================
-
-    @app.after_request
-    async def add_no_cache_headers(response):
-        if response.content_type and 'text/html' in response.content_type:
-            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-        return response
-
-    @app.route('/')
-    async def index():
-        global current_set_id
-        try:
-            sel = request.args.get('set', current_set_id)
-            if sel in CAMERA_SETS and sel != current_set_id:
-                async with STATE_LOCK:
-                    current_set_id = sel
-                return redirect(url_for('index', set=sel))
-
-            sc = CAMERA_SETS.get(sel, {})
-            cols = max(1, int(sc.get("max_columns", 2)))
-            rows = int(sc.get("max_rows", 0))
-            raw = sc.get("camera_ids", [])
-            seen = set()
-            uids = [x for x in raw if not (x in seen or seen.add(x))]
-            cams, miss = [], []
-
-            for c in uids:
-                cam = CAMERAS_DB.get(c)
-                if not cam:
-                    miss.append(c)
-                    continue
-                sub_url = cam.get("sub_url", cam.get("main_url", ""))
-                sub_suffix = "_main" if sub_url == cam.get("main_url", "") else "_sub"
-                cams.append({
-                    "id": c,
-                    "name": cam["name"],
-                    "_m": f"{c}_main",
-                    "_s": f"{c}{sub_suffix}",
-                    "enabled": cam["enabled"],
-                    "comment": cam.get("comment", ""),
-                    "status": "ok"
-                })
-
-            hc = 0
-            lim = cols * rows if rows > 0 else len(cams)
-            if len(cams) > lim:
-                hc = len(cams) - lim
-                cams = cams[:lim]
-
-            cfg = CFG
-            hls_player_cfg = cfg.get("ffmpeg", {}).get("hls_player", {})
-
-            return await render_template(
-                'main.html',
-                sets=CAMERA_SETS,
-                cur=sel,
-                cameras=cams,
-                max_columns=cols,
-                rows=rows,
-                missing_ids=miss,
-                hidden_count=hc,
-                perf=cfg.get("performance", {}),
-                aspect_ratio=sc.get("aspect_ratio", "16:9"),
-                hls_player_cfg=hls_player_cfg
-            )
-        except Exception as e:
-            return f"Error: {e}", 500
 
     @app.route('/api/data')
     async def api_data():
@@ -337,27 +265,8 @@ def register_routes(app):
 
         return jsonify({"system": sys_info, "stats": stats, "cameras": cams})
 
+
+
     @app.route('/api/archive/stats')
     async def api_archive_stats():
         return jsonify(await db.get_archive_stats())
-
-    @app.route('/settings')
-    async def settings_page():
-        tabs = [
-            {'id': 'config', 'name': 'Конфиг', 'icon': '⚙️'},
-            {'id': 'cameras', 'name': 'Камеры', 'icon': '📹'},
-            {'id': 'sets', 'name': 'Наборы', 'icon': '📦'},
-            {'id': 'logs', 'name': 'Логи', 'icon': '📜'},
-            {'id': 'dashboard', 'name': 'Дашборд', 'icon': '📊'},
-            {'id': 'archive', 'name': 'Архив', 'icon': '📼'}
-        ]
-        active_tab = request.args.get('tab', 'config')
-        archive_pools = CFG.get('archive', {}).get('pools', [])
-
-        return await render_template(
-            'settings.html',
-            tabs=tabs,
-            active_tab=active_tab,
-            archive_pools=archive_pools,
-            cameras=[]
-        )
