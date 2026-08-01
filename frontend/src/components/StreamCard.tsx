@@ -107,7 +107,7 @@ export default function StreamCard({
         hls.destroy();
       }
     };
-  }, [camera.enabled, camera._s, subUrl]);
+  }, [camera.id, camera.enabled, camera._s, subUrl]);
 
   // Monitor stream state from stats
   useEffect(() => {
