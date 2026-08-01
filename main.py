@@ -115,8 +115,8 @@ def create_app() -> Quart:
     # Отдача статических файлов React из dist/
     from quart import send_from_directory
     
-    @app.route('/assets/<path:filename>')
-    async def serve_assets(filename):
+    @app.route('/react-app/assets/<path:filename>')
+    async def serve_react_assets(filename):
         return await send_from_directory('frontend/dist/assets', filename)
     
     @app.route('/favicon.svg')
@@ -127,11 +127,27 @@ def create_app() -> Quart:
     async def serve_icons():
         return await send_from_directory('frontend/dist', 'icons.svg')
     
-    # Основной маршрут для React SPA
+    # Основной маршрут для React SPA - перенаправление на /react-app
     @app.route('/react')
     @app.route('/react/')
     async def serve_react_app():
         return await send_from_directory('frontend/dist', 'index.html')
+    
+    # Корневой маршрут - перенаправление на React приложение
+    @app.route('/react-app')
+    @app.route('/react-app/')
+    async def serve_react_main():
+        return await send_from_directory('frontend/dist', 'index.html')
+    
+    # Обработка всех остальных маршрутов для React Router (SPA)
+    @app.route('/react-app/<path:path>')
+    async def serve_react_static(path):
+        if '.' in path:
+            # Это файл (JS, CSS, изображения)
+            return await send_from_directory('frontend/dist', path)
+        else:
+            # Это SPA роутинг
+            return await send_from_directory('frontend/dist', 'index.html')
 
     # Привязка функции запуска к событию before_serving
     @app.before_serving
