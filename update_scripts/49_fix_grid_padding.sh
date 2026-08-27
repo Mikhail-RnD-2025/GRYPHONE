@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================
-#  GRYPHONE — script 49b: ADD monitor-page CLASS
+#  GRYPHONE — script 49c: FIX monitor-page CLASS (FINAL)
 #  ------------------------------------------------------------
-#  Adds monitor-page class to MonitorPage.jsx root div.
-#  This is a targeted fix for script 49.
+#  Properly adds monitor-page class handling whitespace.
 #
-#  RUN:   bash update_scripts/49b_fix_monitor_page_class.sh
+#  RUN:   bash update_scripts/49c_fix_monitor_page_final.sh
 #  THEN:  npm run build
 # ============================================================
 set -euo pipefail
@@ -21,9 +20,7 @@ fi
 echo "📁 Project root: $PROJECT_DIR"
 cd "$PROJECT_DIR"
 
-# ============================================================
 # Python detection
-# ============================================================
 _detect_python() {
     local cmd
     for cmd in python python3 py; do
@@ -47,13 +44,14 @@ read -ra PYCMD <<< "$PYTHON_CMD"
 echo "✅ Python: ${PYCMD[*]}"
 
 # ============================================================
-# Add monitor-page class
+# Fix monitor-page class with proper whitespace handling
 # ============================================================
 echo ""
-echo "🔧 Adding monitor-page class to MonitorPage.jsx..."
+echo "🔧 Fixing monitor-page class in MonitorPage.jsx..."
 
 "${PYCMD[@]}" << 'PYEOF'
 from pathlib import Path
+import re
 
 file = Path("frontend/src/pages/MonitorPage.jsx")
 content = file.read_text(encoding="utf-8")
@@ -63,14 +61,15 @@ if 'monitor-page' in content:
     print("INFO: monitor-page class already present")
     raise SystemExit(0)
 
-# Находим первую строку с className="page" и добавляем monitor-page
+# Находим строку с className="page" (с возможными пробелами)
 lines = content.split('\n')
 modified = False
 
 for i, line in enumerate(lines):
-    if 'className="page"' in line and 'monitor-page' not in line:
-        # Заменяем className="page" на className="page monitor-page"
-        lines[i] = line.replace('className="page"', 'className="page monitor-page"')
+    # Ищем className="page" с любыми пробелами внутри
+    if re.search(r'className="page\s*"', line):
+        # Заменяем className="page" или className="page " на className="page monitor-page"
+        lines[i] = re.sub(r'className="page\s*"', 'className="page monitor-page"', line)
         modified = True
         print(f"OK: added monitor-page class at line {i+1}")
         print(f"   Before: {line.strip()}")
@@ -78,46 +77,32 @@ for i, line in enumerate(lines):
         break
 
 if not modified:
-    print("WARNING: could not find className='page' to modify")
-    print("Trying alternative pattern...")
+    print("ERROR: could not find className='page' pattern")
+    print("Searching for any className with 'page'...")
 
-    # Пробуем найти <div с className
+    # Показываем все строки с className
     for i, line in enumerate(lines):
-        if '<div' in line and 'className=' in line and 'page' in line:
-            # Добавляем monitor-page после page
-            lines[i] = line.replace('"page"', '"page monitor-page"')
-            modified = True
-            print(f"OK: added monitor-page class at line {i+1} (alternative)")
-            print(f"   After: {lines[i].strip()}")
-            break
+        if 'className' in line and 'page' in line:
+            print(f"  Line {i+1}: {line.strip()}")
 
-if modified:
-    file.write_text('\n'.join(lines), encoding="utf-8")
-    print("OK: MonitorPage.jsx updated")
+    raise SystemExit(1)
+
+# Сохраняем изменения
+file.write_text('\n'.join(lines), encoding="utf-8")
+print("OK: MonitorPage.jsx updated")
+
+# Проверяем результат
+content = file.read_text(encoding="utf-8")
+if 'monitor-page' in content:
+    print("✓ Verification passed: monitor-page class present")
 else:
-    print("ERROR: could not add monitor-page class")
-    print("Please add it manually to the root <div>")
+    print("✗ Verification failed: monitor-page class NOT found")
+    raise SystemExit(1)
 PYEOF
-
-# ============================================================
-# Verify
-# ============================================================
-echo ""
-echo "🔍 Verification..."
-
-if grep -q "monitor-page" "$PROJECT_DIR/frontend/src/pages/MonitorPage.jsx"; then
-    echo "  ✔ monitor-page class present"
-    echo ""
-    echo "📋 Line with monitor-page:"
-    grep -n "monitor-page" "$PROJECT_DIR/frontend/src/pages/MonitorPage.jsx" | head -1
-else
-    echo "  ❌ monitor-page class NOT found"
-    exit 1
-fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ monitor-page class added"
+echo "✅ monitor-page class fixed"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "🚀 Next: npm run build"

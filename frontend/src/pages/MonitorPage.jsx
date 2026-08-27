@@ -91,7 +91,7 @@ export default function MonitorPage() {
   const hasSets = setData && setData.set_id !== ''
 
   return (
-    <div className="page ">
+    <div className="page monitor-page">
       <Header />
 
       {hasSets && cameras.length > 0 && (
