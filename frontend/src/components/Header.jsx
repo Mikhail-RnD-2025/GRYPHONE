@@ -1,44 +1,33 @@
 // ============================================================
-//  GRYPHONE — шапка приложения (v45)
+//  GRYPHONE — application header (v48)
 //  ------------------------------------------------------------
-//  Логика появления/скрытия:
-//    1. По умолчанию шапка скрыта (на мониторинге)
-//    2. При наведении курсора на верхнюю триггер-зону (20px)
-//       шапка плавно появляется
-//    3. Пока мышь находится НА ШАПКЕ — она остаётся видимой
-//    4. После ухода мыши с шапки запускается таймер 3 сек
-//    5. Если за 3 сек мышь не вернулась — шапка скрывается
-//
-//  На страницах настроек/справки шапка всегда видна.
+//  Left:   logo
+//  Center: clock
+//  Right:  hamburger menu (all navigation moved there)
 // ============================================================
 import { useState, useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { getSets, switchSet } from '../api'
+import HamburgerMenu from './HamburgerMenu'
 
 export default function Header() {
   const [sets, setSets] = useState({})
   const [currentSet, setCurrentSet] = useState('')
   const [clock, setClock] = useState('')
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(true)
   const hideTimerRef = useRef(null)
+  const isHoveredRef = useRef(false)
   const location = useLocation()
 
   const isMonitorPage = location.pathname === '/'
-  const isSettingsPage = location.pathname === '/settings'
-  const isHelpPage = location.pathname === '/help'
 
-  useEffect(() => {
-    loadSets()
-  }, [])
+  useEffect(() => { loadSets() }, [])
 
-  // Часы
   useEffect(() => {
     const updateClock = () => {
       const now = new Date()
       setClock(now.toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
       }))
     }
     updateClock()
@@ -46,17 +35,15 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
-  // ИСПРАВЛЕНО (v45): на не-мониторинге шапка всегда видна
+  // Auto-hide logic (only on monitor page)
   useEffect(() => {
     if (!isMonitorPage) {
       setVisible(true)
-    } else {
-      // На мониторинге по умолчанию скрыта
-      setVisible(false)
+      return
     }
+    setVisible(false)
   }, [isMonitorPage])
 
-  // ИСПРАВЛЕНО (v45): сброс таймера при входе мыши на зону/шапку
   const cancelHide = () => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current)
@@ -64,29 +51,25 @@ export default function Header() {
     }
   }
 
-  // ИСПРАВЛЕНО (v45): запуск таймера 3 сек при уходе мыши
   const scheduleHide = () => {
     if (!isMonitorPage) return
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
-      setVisible(false)
-    }, 1000)
+      if (!isHoveredRef.current) setVisible(false)
+    }, 2000)
   }
 
-  // ИСПРАВЛЕНО (v45): вход мыши в триггер-зону или на шапку
   const handleMouseEnter = () => {
+    isHoveredRef.current = true
     cancelHide()
     setVisible(true)
   }
 
-  // ИСПРАВЛЕНО (v45): уход мыши с шапки — запускаем таймер
   const handleMouseLeave = () => {
-    if (isMonitorPage) {
-      scheduleHide()
-    }
+    isHoveredRef.current = false
+    if (isMonitorPage) scheduleHide()
   }
 
-  // Очистка таймера при размонтировании
   useEffect(() => {
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
@@ -99,7 +82,7 @@ export default function Header() {
       setSets(data.sets || {})
       setCurrentSet(data.default_set || '')
     } catch (e) {
-      console.error('Ошибка загрузки наборов:', e)
+      console.error('Failed to load sets:', e)
     }
   }
 
@@ -110,72 +93,46 @@ export default function Header() {
       await switchSet(setId)
       window.dispatchEvent(new CustomEvent('set-changed', { detail: { setId } }))
     } catch (e) {
-      console.error('Ошибка переключения набора:', e)
+      console.error('Failed to switch set:', e)
     }
   }
 
   return (
     <>
-      {/* ИСПРАВЛЕНО (v45): невидимая триггер-зона сверху.
-          Только на мониторинге. Высота 20px, при наведении
-          мыши показывает шапку. */}
       {isMonitorPage && (
-        <div
-          className="header-trigger"
-          onMouseEnter={handleMouseEnter}
-        />
+        <div className="header-trigger" onMouseEnter={handleMouseEnter} />
       )}
 
-      {/* Сама шапка */}
       <div
         className={`header ${isMonitorPage && !visible ? 'header-hidden' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Логотип слева */}
+        {/* Left: logo + set selector */}
         <div className="header-left">
           <h1 className="header-title">GRYPHONE</h1>
-        </div>
-
-        {/* Время по центру */}
-        <div className="header-center">
-          <span className="header-clock">{clock}</span>
-        </div>
-
-        {/* Справа: наборы → навигация → справка */}
-        <div className="header-right">
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
               className="set-selector"
               value={currentSet}
               onChange={handleSetChange}
-              title="Выбор набора"
+              title="Select set"
             >
               {Object.entries(sets).map(([id, set]) => (
-                <option key={id} value={id}>
-                  {set.name}
-                </option>
+                <option key={id} value={id}>{set.name}</option>
               ))}
             </select>
           )}
+        </div>
 
-          {(isSettingsPage || isHelpPage) && (
-            <Link to="/" className="header-btn" title="Назад к камерам">
-              ← Камеры
-            </Link>
-          )}
+        {/* Center: clock */}
+        <div className="header-center">
+          <span className="header-clock">{clock}</span>
+        </div>
 
-          {(isMonitorPage || isHelpPage) && (
-            <Link to="/settings" className="header-btn" title="Настройки">
-              ⚙️
-            </Link>
-          )}
-
-          {!isHelpPage && (
-            <Link to="/help" className="header-btn" title="Справка">
-              ❓
-            </Link>
-          )}
+        {/* Right: hamburger menu */}
+        <div className="header-right">
+          <HamburgerMenu />
         </div>
       </div>
     </>
