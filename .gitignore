@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Данные и кэш (создаются рантаймом / мигрируются)
+*.db
+hls_cache/
+config.json
+cameras.json
+sets.json
+
+# Фронтенд (зависимости и прод-сборка)
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
