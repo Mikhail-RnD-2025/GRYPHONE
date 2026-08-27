@@ -20,3 +20,4 @@ frontend/dist/
 .idea/
 .vscode/
 /update_scripts/
+frontend/dist/
