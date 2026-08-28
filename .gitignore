@@ -15,9 +15,10 @@ sets.json
 # Фронтенд (зависимости и прод-сборка)
 frontend/node_modules/
 frontend/dist/
+update_scripts/
+utils/
+data/
 
 # IDE
 .idea/
 .vscode/
-update_scripts/
-frontend/dist/
