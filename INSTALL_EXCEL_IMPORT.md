@@ -9,4 +9,4 @@ Python 3.7+ и библиотека `openpyxl` для работы с Excel фа
 ### Вариант 1: Автоматическая (рекомендуется)
 
 ```bash
-pip install openpyxl
+pip install -r requirements.txt

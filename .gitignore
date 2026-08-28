@@ -28,3 +28,4 @@ frontend/dist/
 database/*.db
 /database/
 /utils/
+/utils/
