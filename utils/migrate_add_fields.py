@@ -12,7 +12,29 @@ import json
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path("rtsp_viewer.db")
+import sqlite3
+from pathlib import Path
+
+# Path to database: parent of utils/ is project root
+DB_PATH = Path(__file__).resolve().parent.parent / str(DATABASE_PATH)
+
+print(f"Database path: {DB_PATH}")
+
+if not DB_PATH.exists():
+    print(f"ERROR: database not found at {DB_PATH}")
+    raise SystemExit(1)
+
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
+
+print(f"Database path: {DB_PATH}")
+
+if not DB_PATH.exists():
+    print(f"ERROR: database not found at {DB_PATH}")
+    raise SystemExit(1)
+
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
 
 
 def main():

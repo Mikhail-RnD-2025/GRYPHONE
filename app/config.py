@@ -22,8 +22,8 @@ def default_config() -> Dict[str, Any]:
     return {
         "server": {"host": "0.0.0.0", "port": 5000},
         "paths": {
-            "cameras_db": "rtsp_viewer.db",
-            "sets_db": "rtsp_viewer.db",
+            "cameras_db": str(DATABASE_PATH),
+            "sets_db": str(DATABASE_PATH),
             "hls_cache": "hls_cache",
         },
         "ffmpeg": {
@@ -52,7 +52,7 @@ def default_config() -> Dict[str, Any]:
         },
         "cleanup": {"enabled": True, "interval_seconds": 300, "max_age_hours": 24},
         "performance": {"probe_workers": 32, "sse_interval": 1.0},
-        "events": {"enabled": True, "retention_days": 30, "db_path": "rtsp_viewer.db"},
+        "events": {"enabled": True, "retention_days": 30, "db_path": str(DATABASE_PATH)},
         "storage": {"default": "", "targets": []},
         "integration": {"enabled": False},
         "analytics": {"enabled": False},

@@ -369,7 +369,7 @@ def create_sets_from_cameras(cameras: List[Dict]) -> Dict:
 # СОХРАНЕНИЕ В БД
 # ============================================================
 def save_to_database(cameras: List[Dict], sets_data: Dict,
-                     db_path: Path = Path('rtsp_viewer.db')) -> None:
+                     db_path: Path = Path(str(DATABASE_PATH))) -> None:
     """Сохраняет камеры и наборы в базу данных."""
     print(f"\n💾 Сохранение в БД: {db_path}")
 
@@ -453,7 +453,7 @@ def print_statistics(cameras: List[Dict], sets_data: Dict) -> None:
 # ============================================================
 # ГЛАВНАЯ ФУНКЦИЯ ИМПОРТА
 # ============================================================
-def import_excel(filepath: str, db_path: str = 'rtsp_viewer.db') -> Dict:
+def import_excel(filepath: str, db_path: str = str(DATABASE_PATH)) -> Dict:
     """
     Главная функция импорта.
 
@@ -499,7 +499,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     filepath = sys.argv[1]
-    db_path = sys.argv[2] if len(sys.argv) > 2 else 'rtsp_viewer.db'
+    db_path = sys.argv[2] if len(sys.argv) > 2 else str(DATABASE_PATH)
 
     result = import_excel(filepath, db_path)
     if not result['success']:

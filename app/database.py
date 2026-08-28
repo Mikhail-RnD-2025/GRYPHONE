@@ -22,7 +22,7 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 # Путь к файлу БД. Можно переопределить переменной окружения.
-DB_PATH = os.environ.get("GRYPHONE_DB", "rtsp_viewer.db")
+DB_PATH = os.environ.get("GRYPHONE_DB", str(DATABASE_PATH))
 
 
 def _json_default(obj):
