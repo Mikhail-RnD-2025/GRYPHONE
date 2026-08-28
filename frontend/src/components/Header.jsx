@@ -1,5 +1,5 @@
 // ============================================================
-//  GRYPHONE — application header (v48)
+//  GRYPHONE-VISION — application header (v48)
 //  ------------------------------------------------------------
 //  Left:   logo
 //  Center: clock

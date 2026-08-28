@@ -25,3 +25,9 @@ data/
 
 # Local utilities (not tracked)
 utils/
+
+# Local configuration (optional: keep if you want to track default configs)
+# data/config.json
+
+# Local configuration (optional: keep if you want to track default configs)
+# data/config.json

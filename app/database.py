@@ -18,6 +18,9 @@ import logging
 import os
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / 'data'
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +78,9 @@ class Database:
         """Переносит данные из устаревших файлов в БД (однократно)."""
         logger.info("📦 Миграция из файлов...")
         for fname, key in [
-            ("config.json", "config"),
-            ("cameras.json", "cameras"),
-            ("sets.json", "sets"),
+            (DATA_DIR / DATA_DIR / 'config.json', "config"),
+            (DATA_DIR / DATA_DIR / 'cameras.json', "cameras"),
+            (DATA_DIR / DATA_DIR / 'sets.json', "sets"),
         ]:
             if os.path.exists(fname):
                 try:
