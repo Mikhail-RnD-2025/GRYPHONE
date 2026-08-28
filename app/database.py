@@ -19,6 +19,9 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+
+# Database path configuration
+DATABASE_PATH = BASE_DIR / 'database' / 'gryphone-vision.db'
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / 'data'
 

@@ -18,13 +18,11 @@ frontend/dist/
 update_scripts/
 utils/
 data/
+database/
 
 # IDE
 .idea/
 .vscode/
-
-# Local utilities (not tracked)
-utils/
 
 # Local configuration (optional: keep if you want to track default configs)
 # data/config.json

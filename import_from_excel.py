@@ -30,6 +30,10 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
+# Database path configuration
+BASE_DIR = Path(__file__).resolve().parent
+DATABASE_PATH = BASE_DIR / 'database' / 'gryphone-vision.db'
+
 try:
     from openpyxl import load_workbook
 except ImportError:

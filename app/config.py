@@ -9,10 +9,15 @@ app/config.py
 не обновляло данные.
 """
 import copy
+from pathlib import Path
 import logging
 from typing import Any, Dict
 
 from app.database import db
+
+# Database path configuration
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATABASE_PATH = BASE_DIR / 'database' / 'gryphone-vision.db'
 
 logger = logging.getLogger(__name__)
 
