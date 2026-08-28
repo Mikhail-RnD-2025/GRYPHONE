@@ -19,5 +19,5 @@ frontend/dist/
 # IDE
 .idea/
 .vscode/
-/update_scripts/
+update_scripts/
 frontend/dist/
