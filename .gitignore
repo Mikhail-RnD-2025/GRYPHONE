@@ -21,3 +21,10 @@ frontend/dist/
 .vscode/
 update_scripts/
 frontend/dist/
+/utils/
+/utils/
+
+# Database files (should not be committed)
+database/*.db
+/database/
+/utils/

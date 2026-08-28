@@ -91,7 +91,7 @@ def register(app):
             # Импортируем через import_from_excel
             from import_from_excel import import_excel as import_func
 
-            db_path = Path(app.config.get('DB_PATH', 'rtsp_viewer.db'))
+            db_path = Path(app.config.get('DB_PATH', str(DATABASE_PATH)))
             result = import_func(tmp_path, str(db_path))
 
             return jsonify(result)
