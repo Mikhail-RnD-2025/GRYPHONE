@@ -15,17 +15,14 @@ sets.json
 # Фронтенд (зависимости и прод-сборка)
 frontend/node_modules/
 frontend/dist/
+update_scripts/
+frontend/dist/
 
 # IDE
 .idea/
 .vscode/
-update_scripts/
-frontend/dist/
-/utils/
-/utils/
 
 # Database files (should not be committed)
 database/*.db
-/database/
-/utils/
-/utils/
+database/
+utils/
