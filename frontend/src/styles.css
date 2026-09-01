@@ -884,3 +884,36 @@ body {
   margin-bottom: 24px;
   line-height: 1.5;
 }
+
+/* ============================================================
+   Set selector next to hamburger menu (v49)
+   ============================================================ */
+
+/* Set selector styling */
+.set-selector {
+  background: #1e293b;
+  color: #e0e3e8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.set-selector:hover {
+  border-color: #2563eb;
+}
+
+.set-selector:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* Header right section: selector + menu */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
