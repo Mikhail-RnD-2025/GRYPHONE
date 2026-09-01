@@ -15,11 +15,13 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 const MENU_ITEMS = [
+  { path: '/', label: 'Главная', icon: '🏠', enabled: true },
+
   { path: '/status',     label: 'Состояние',  icon: '📊', enabled: true  },
   { path: '/analytics',  label: 'Аналитика',  icon: '📈', enabled: false },
   { path: '/reports',    label: 'Отчёты',     icon: '📋', enabled: false },
   { path: '/cameras',    label: 'Камеры',     icon: '📹', enabled: true  },
-  { path: '/sets',       label: 'Наборы',     icon: '📦', enabled: true  },
+  { path: '/sets',       label: 'Мониторинг',     icon: '📦', enabled: true  },
   { path: '/settings',   label: 'Настройки',  icon: '⚙️', enabled: true  },
   { path: '/help',       label: 'Справка',    icon: '❓', enabled: true  },
 ]
