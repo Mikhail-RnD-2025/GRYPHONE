@@ -29,14 +29,23 @@ class CameraService:
         self._load()
 
     def _load(self) -> None:
-        raw_cameras = db.get(self.CAMERAS_KEY, []) or []
+        raw_cameras = db.get_all_cameras() or []
         self._cameras = {}
         for raw in raw_cameras:
             cam = Camera.from_raw(raw)
             if cam:
                 self._cameras[cam.id] = cam
 
-        raw_sets = db.get(self.SETS_KEY, {"default_set": "", "sets": {}}) or {}
+        raw_sets = db.get_all_sets() or {"default_set": "", "sets": {}}
+        # [PATCH-66-B] Адаптация ключей БД к модели Set
+        for _sid, _sdata in raw_sets.get("sets", {}).items():
+            if isinstance(_sdata, dict):
+                if "grid_columns" in _sdata:
+                    _sdata["max_columns"] = _sdata.pop("grid_columns")
+                if "grid_rows" in _sdata:
+                    _sdata["max_rows"] = _sdata.pop("grid_rows")
+                if "cameras" in _sdata:
+                    _sdata["camera_ids"] = _sdata.pop("cameras")
         sets_dict = raw_sets.get("sets", {}) if isinstance(raw_sets, dict) else {}
         self._sets = {
             set_id: Set.from_raw(set_id, raw)
@@ -69,7 +78,7 @@ class CameraService:
             if cam:
                 self._cameras[cam.id] = cam
                 clean.append(cam.to_dict())
-        db.save(self.CAMERAS_KEY, clean)
+        db.save_cameras_list( clean)
         self._sync_workers()
         return len(clean)
 
@@ -112,7 +121,7 @@ class CameraService:
         return cam
 
     def _persist_cameras(self) -> None:
-        db.save(self.CAMERAS_KEY, [c.to_dict() for c in self._cameras.values()])
+        db.save_cameras_list( [c.to_dict() for c in self._cameras.values()])
 
     def all_sets(self) -> Dict[str, Set]:
         return dict(self._sets)
@@ -153,7 +162,7 @@ class CameraService:
         self._default_set = raw.get("default_set", "") or self._default_set
         if self._current_set not in self._sets:
             self._current_set = self._default_set
-        db.save(self.SETS_KEY, raw)
+        db.save_sets_data( raw)
         return True
 
     def switch_set(self, set_id: str) -> bool:

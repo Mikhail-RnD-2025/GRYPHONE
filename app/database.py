@@ -292,5 +292,61 @@ class Database:
         }
 
 
+
+    def save_cameras_list(self, cameras):
+        """Сохранить список камер в таблицу cameras (полная замена)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM cameras")
+        for cam in cameras:
+            cursor.execute("""
+                INSERT OR REPLACE INTO cameras
+                (id, name, main_url, sub_url, enabled, comment, audio, location)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cam.get('id', ''),
+                cam.get('name', ''),
+                cam.get('main_url', ''),
+                cam.get('sub_url', ''),
+                1 if cam.get('enabled', True) else 0,
+                cam.get('comment', ''),
+                1 if cam.get('audio', True) else 0,
+                cam.get('location', '')
+            ))
+        conn.commit()
+        conn.close()
+
+    def save_sets_data(self, sets_data):
+        """Сохранить наборы в таблицы sets и set_cameras (полная замена)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        default_set = sets_data.get('default_set', '')
+        sets_dict = sets_data.get('sets', {})
+        cursor.execute("DELETE FROM set_cameras")
+        cursor.execute("DELETE FROM sets")
+        for set_id, set_info in sets_dict.items():
+            if not isinstance(set_info, dict):
+                continue
+            is_default = 1 if set_id == default_set else 0
+            cursor.execute("""
+                INSERT OR REPLACE INTO sets
+                (id, name, grid_columns, grid_rows, is_default)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                set_id,
+                set_info.get('name', set_id),
+                set_info.get('max_columns', set_info.get('grid_columns', 4)),
+                set_info.get('max_rows', set_info.get('grid_rows', 3)),
+                is_default
+            ))
+            camera_ids = set_info.get('camera_ids', set_info.get('cameras', []))
+            for cam_id in camera_ids:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO set_cameras (set_id, camera_id)
+                    VALUES (?, ?)
+                """, (set_id, cam_id))
+        conn.commit()
+        conn.close()
+
 # Global database instance
 db = Database()
