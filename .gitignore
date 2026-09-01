@@ -8,9 +8,6 @@ venv/
 # Данные и кэш (создаются рантаймом / мигрируются)
 *.db
 hls_cache/
-config.json
-cameras.json
-sets.json
 
 # Фронтенд (зависимости и прод-сборка)
 frontend/node_modules/
