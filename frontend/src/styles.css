@@ -917,3 +917,10 @@ body {
   align-items: center;
   gap: 12px;
 }
+
+.empty-state {
+  padding: 12px;
+  border: 1px dashed #999;
+  color: #666;
+  border-radius: 8px;
+}

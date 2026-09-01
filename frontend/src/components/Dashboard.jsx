@@ -198,7 +198,8 @@ export default function Dashboard() {
           <div style={{ color: '#94a3b8' }}>Нет наборов</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-            {sets.map(set => (
+            {(!sets || sets.length === 0) && <div className="empty-state">Наборы не созданы</div>}
+{(sets ?? []).map(set => (
               <div key={set.id} style={{
                 padding: '12px',
                 background: '#0b0d10',
