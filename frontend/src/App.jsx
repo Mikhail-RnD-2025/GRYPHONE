@@ -14,6 +14,7 @@ import HelpPage from './pages/HelpPage'
 export default function App() {
   return (
     <BrowserRouter>
+<NavLink to="/sets" className="nav-link monitoring-link">Мониторинг</NavLink>
       <Routes>
         <Route path="/" element={<MonitorPage />} />
         <Route path="/status" element={<StatusPage />} />
