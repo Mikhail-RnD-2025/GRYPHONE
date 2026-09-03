@@ -1,0 +1,66 @@
+{
+  "default_set": "210",
+  "sets": {
+    "210": {
+      "aspect_ratio": "16:9",
+      "camera_ids": [
+        "210-P-GAVw-001", "210-P-GAVw-002", "210-P-GAVw-003", "210-P-GAVw-004",
+        "210-P-GAVw-005", "210-P-GAVw-006", "210-P-GAVw-007", "210-P-GAVw-008",
+        "210-P-GAVw-009", "210-P-GAVw-010", "210-P-GAVw-011", "210-P-GAVw-012",
+        "210-P-GAVw-013", "210-P-GAVw-014", "210-P-GAVw-015", "210-P-GAVw-016",
+        "210-P-GAVw-017", "210-P-GAVw-018", "210-P-GAVw-019", "210-P-GAVw-020",
+        "210-P-GAVw-021", "210-P-GAVw-022", "210-P-GAVw-023", "210-P-GAVw-024",
+        "210-P-GAVw-025", "210-P-GAVw-026", "210-P-GAVw-027", "210-P-GAVw-028",
+        "210-P-GAVw-029", "210-P-GAVw-030", "210-P-GAVw-031", "210-P-GAVw-032",
+        "210-P-GAVw-033", "210-P-GAVw-034", "210-P-GAVw-035", "210-P-GAVw-036",
+        "210-P-GAVw-037", "210-P-GAVw-038", "210-P-GAVw-039", "210-P-GAVw-040",
+        "210-P-GAVw-041", "210-P-GAVw-042", "210-P-GAVw-043", "210-P-GAVw-044",
+        "210-P-GAVw-045", "210-P-GAVw-046", "210-P-GAVw-047", "210-P-GAVw-048",
+        "210-P-GAVw-049", "210-P-GAVw-050", "210-P-GAVw-051", "210-P-GAVw-052",
+        "210-P-GAVw-053"
+      ],
+      "max_columns": 8,
+      "max_rows": 7,
+      "name": "🏢 210"
+    },
+    "403": {
+      "aspect_ratio": "16:9",
+      "camera_ids": [
+        "403-P-GAVw-001", "403-P-GAVw-002", "403-P-GAVw-003", "403-P-GAVw-004",
+        "403-P-GAVw-005", "403-P-GAVw-006", "403-P-GAVw-007", "403-P-GAVw-008",
+        "403-P-GAVw-009", "403-P-GAVw-010", "403-P-GAVw-011", "403-P-GAVw-012",
+        "403-P-GAVw-013", "403-P-GAVw-014", "403-P-GAVw-015", "403-P-GAVw-016",
+        "403-P-GAVw-017", "403-P-GAVw-018", "403-P-GAVw-019", "403-P-GAVw-020",
+        "403-P-GAVw-021", "403-P-GAVw-022", "403-P-GAVw-023", "403-P-GAVw-024",
+        "403-P-GAVw-025", "403-P-GAVw-026", "403-P-GAVw-027", "403-P-GAVw-028",
+        "403-P-GAVw-029"
+      ],
+      "max_columns": 6,
+      "max_rows": 5,
+      "name": "🏢 403"
+    },
+    "301A": {
+      "aspect_ratio": "16:9",
+      "camera_ids": [
+        "301A-P-GAVw-001", "301A-P-GAVw-002", "301A-P-GAVw-003", "301A-P-GAVw-004",
+        "301A-P-GAVw-005", "301A-P-GAVw-006", "301A-P-GAVw-007", "301A-P-GAVw-008",
+        "301A-P-GAVw-009", "301A-P-GAVw-010", "301A-P-GAVw-011", "301A-P-GAVw-012",
+        "301A-P-GAVw-013", "301A-P-GAVw-014", "301A-P-GAVw-015", "301A-P-GAVw-016",
+        "301A-P-GAVw-017", "301A-P-GAVw-018", "301A-P-GAVw-019", "301A-P-GAVw-020",
+        "301A-P-GAVw-021", "301A-P-GAVw-022", "301A-P-GAVw-023", "301A-P-GAVw-024",
+        "301A-P-GAVw-025", "301A-P-GAVw-026", "301A-P-GAVw-027", "301A-P-GAVw-028",
+        "301A-P-GAVw-029", "301A-P-GAVw-030", "301A-P-GAVw-031", "301A-P-GAVw-032"
+      ],
+      "max_columns": 6,
+      "max_rows": 6,
+      "name": "🏢 301A"
+    },
+    "default": {
+      "aspect_ratio": "16:9",
+      "camera_ids": ["phone", "test"],
+      "max_columns": 2,
+      "max_rows": 1,
+      "name": "📦 По умолчанию"
+    }
+  }
+}
