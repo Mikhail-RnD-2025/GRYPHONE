@@ -157,24 +157,6 @@ class Database:
         else:
             print(f"  ⚠️  sets.json not found in data/")
 
-        # Load config.json into settings table
-        config_file = DATA_DIR / 'config.json'
-        if config_file.exists():
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-
-                for key, value in config_data.items():
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO settings (key, value)
-                        VALUES (?, ?)
-                    """, (key, str(value) if not isinstance(value, str) else value))
-
-                if config_data:
-                    print(f"  ✔ Loaded {len(config_data)} config entries from data/config.json")
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"  ⚠️  Error loading config.json: {e}")
-
         conn.commit()
         conn.close()
 

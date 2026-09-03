@@ -5,7 +5,7 @@ app/config.py
 
 Управление конфигурацией приложения.
 
-ИСТОЧНИК ЭТАЛОНА:  database/sql/config.sql
+ИСТОЧНИК ЭТАЛОНА:  database/sql/default_config.sql
     — внешний SQL-файл с INSERT-командой в таблицу settings.
     При первом запуске читается, JSON извлекается, служебные ключи "_comment"
     удаляются, результат сохраняется в БД под ключом "config".
@@ -30,7 +30,7 @@ from app.database import db
 
 # Пути относительно корня проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SQL_PATH = BASE_DIR / "database" / "sql" / "config.sql"
+DEFAULT_SQL_PATH = BASE_DIR / "database" / "sql" / "default_default_config.sql"
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def _load_default_from_sql(sql_path: Path) -> Dict[str, Any]:
 def _fallback_default_config() -> Dict[str, Any]:
     """Запасной вариант конфига на случай недоступности SQL-файла.
 
-    Используется только если database/sql/config.sql не найден или битый.
+    Используется только если database/sql/default_config.sql не найден или битый.
     Содержит минимальный набор параметров, достаточный для запуска.
     """
     return {
@@ -119,7 +119,7 @@ class ConfigManager:
 
     Приоритет источников:
         1. Сохранённый в БД конфиг (пользовательский).
-        2. Эталон из database/sql/config.sql.
+        2. Эталон из database/sql/default_config.sql.
         3. Встроенный fallback _fallback_default_config().
     """
 
