@@ -1,0 +1,153 @@
+// ============================================================
+// GRYPHONE — hamburger menu (mobile-style)
+// ------------------------------------------------------------
+// Three-stripe button that opens a dropdown with navigation.
+// PATCH-78: добавлен выбор наборов в начало меню.
+// ============================================================
+
+import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { getSets, switchSet } from '../api'
+
+const MENU_ITEMS = [
+  { path: '/', label: 'Мониторинг', icon: '📹', enabled: true },
+  { path: '/status', label: 'Состояние', icon: '📊', enabled: true },
+  { path: '/analytics', label: 'Аналитика', icon: '📈', enabled: false },
+  { path: '/reports', label: 'Отчёты', icon: '📋', enabled: false },
+  { path: '/cameras', label: 'Камеры', icon: '📹', enabled: true },
+  { path: '/sets', label: 'Наборы', icon: '📦', enabled: true },
+  { path: '/settings', label: 'Настройки', icon: '⚙️', enabled: true },
+  { path: '/help', label: 'Справка', icon: '❓', enabled: true },
+]
+
+export default function HamburgerMenu() {
+  const [open, setOpen] = useState(false)
+  const [sets, setSets] = useState({})
+  const [currentSet, setCurrentSet] = useState('')
+  const menuRef = useRef(null)
+  const location = useLocation()
+
+  // Загружаем наборы при открытии меню
+  useEffect(() => {
+    if (open) {
+      loadSets()
+    }
+  }, [open])
+
+  const loadSets = async () => {
+    try {
+      const data = await getSets()
+      setSets(data.sets || {})
+      setCurrentSet(data.default_set || '')
+    } catch (e) {
+      console.error('Failed to load sets:', e)
+    }
+  }
+
+  const handleSetChange = async (e) => {
+    const setId = e.target.value
+    setCurrentSet(setId)
+    try {
+      await switchSet(setId)
+      window.dispatchEvent(new CustomEvent('set-changed', { detail: { setId } }))
+    } catch (e) {
+      console.error('Failed to switch set:', e)
+    }
+  }
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  // Close menu on route change
+  useEffect(() => {
+    setOpen(false)
+  }, [location.pathname])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [open])
+
+  return (
+    <div className="hamburger-menu" ref={menuRef}>
+      <button
+        className={`hamburger-btn ${open ? 'active' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-label="Menu"
+        aria-expanded={open}
+      >
+        <span className="hamburger-line" />
+        <span className="hamburger-line" />
+        <span className="hamburger-line" />
+      </button>
+
+      {open && (
+        <div className="hamburger-dropdown">
+          {/* PATCH-78: Секция выбора наборов */}
+          {Object.keys(sets).length > 0 && (
+            <div className="hamburger-sets-section">
+              <div className="hamburger-sets-label">📦 Набор:</div>
+              <select
+                className="hamburger-sets-select"
+                value={currentSet}
+                onChange={handleSetChange}
+              >
+                {Object.entries(sets).map(([id, set]) => (
+                  <option key={id} value={id}>
+                    {set.name}
+                  </option>
+                ))}
+              </select>
+              <div className="hamburger-divider" />
+            </div>
+          )}
+
+          {/* Основные пункты меню */}
+          {MENU_ITEMS.map((item) => {
+            const isActive = location.pathname === item.path
+            const isDisabled = !item.enabled
+
+            if (isDisabled) {
+              return (
+                <div
+                  key={item.path}
+                  className="hamburger-item disabled"
+                  title="Скоро"
+                >
+                  <span className="hamburger-item-icon">{item.icon}</span>
+                  <span className="hamburger-item-label">{item.label}</span>
+                  <span className="hamburger-item-badge">скоро</span>
+                </div>
+              )
+            }
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`hamburger-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="hamburger-item-icon">{item.icon}</span>
+                <span className="hamburger-item-label">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,91 @@
+import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+import HamburgerMenu from './HamburgerMenu'
+
+export default function Header() {
+  const [clock, setClock] = useState('')
+  const [visible, setVisible] = useState(true)
+  const hideTimerRef = useRef(null)
+  const isHoveredRef = useRef(false)
+  const location = useLocation()
+  const isMonitorPage = location.pathname === '/'
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date()
+      setClock(now.toLocaleTimeString('ru-RU', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      }))
+    }
+    updateClock()
+    const interval = setInterval(updateClock, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Auto-hide logic (only on monitor page)
+  useEffect(() => {
+    if (!isMonitorPage) {
+      setVisible(true)
+      return
+    }
+    setVisible(false)
+  }, [isMonitorPage])
+
+  const cancelHide = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+  }
+
+  const scheduleHide = () => {
+    if (!isMonitorPage) return
+    cancelHide()
+    hideTimerRef.current = setTimeout(() => {
+      if (!isHoveredRef.current) setVisible(false)
+    }, 2000)
+  }
+
+  const handleMouseEnter = () => {
+    isHoveredRef.current = true
+    cancelHide()
+    setVisible(true)
+  }
+
+  const handleMouseLeave = () => {
+    isHoveredRef.current = false
+    if (isMonitorPage) scheduleHide()
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    }
+  }, [])
+
+  return (
+    <>
+      {isMonitorPage && (
+        <div className="header-trigger" onMouseEnter={handleMouseEnter} />
+      )}
+      <div
+        className={`header ${isMonitorPage && !visible ? 'header-hidden' : ''}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Left: logo only (set selector moved to HamburgerMenu) */}
+        <div className="header-left">
+          <h1 className="header-title">GRYPHONE</h1>
+        </div>
+        {/* Center: clock */}
+        <div className="header-center">
+          <span className="header-clock">{clock}</span>
+        </div>
+        {/* Right: hamburger menu */}
+        <div className="header-right">
+          <HamburgerMenu />
+        </div>
+      </div>
+    </>
+  )
+}
