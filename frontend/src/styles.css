@@ -36,15 +36,93 @@ body {
   flex-shrink: 0;
 }
 
+/* PATCH-82: Шапка фиксированная на всех страницах */
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #1e293b;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.header-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.header-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 999;
+}
+
+.header-left,
+.header-center,
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.header-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.header-right {
+  flex: 1;
+  justify-content: flex-end;
   gap: 12px;
-  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.header-clock {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Убираем отступы у основного контента, чтобы шапка наползала */
+.page {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+.monitor-page {
+  padding-top: 0 !important;
+}
+
+/* Контент начинается с самого верха */
+.app-container,
+.main-content {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
 }
 
 .header-title {
@@ -462,11 +540,7 @@ body {
 }
 
 /* Скрытое состояние: сдвинута вверх и прозрачна */
-.header.header-hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
+.header
 
 /* Отступ для контента на странице мониторинга (под фиксированную шапку) */
 
@@ -644,17 +718,7 @@ body {
    ============================================================ */
 
 /* Невидимая зона сверху — реагирует на наведение мыши */
-.header-trigger {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 20px;
-  z-index: 999;
-  /* полностью прозрачная, но ловит события мыши */
-  background: transparent;
-  pointer-events: auto;
-}
+
 
 /* Плавная анимация появления/скрытия шапки */
 .header {
@@ -664,11 +728,7 @@ body {
 }
 
 /* Скрытое состояние: шапка ушла вверх и прозрачна */
-.header.header-hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
+.header
 
 /* На мониторинге: шапка — оверлей (не занимает место в сетке) */
 .page.monitor-page .header,

@@ -1,10 +1,12 @@
 #!/bin/sh
 # ============================================================================
-# 82. update_scripts/82_header_overlay_all_pages.sh
+# 82. update_scripts/82_header_overlay_all_pages.sh (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 # ----------------------------------------------------------------------------
 # НАЗНАЧЕНИЕ:
 #   Делает шапку фиксированной (position: fixed) на всех страницах.
 #   Шапка наползает на контент, а не резервирует место под себя.
+#
+# ИСПРАВЛЕНО: путь к файлу стилей (styles.css вместо index.css)
 #
 # ИДЕМПОТЕНТНОСТЬ: повторный запуск безопасен.
 # ЗАПУСК: ./82_header_overlay_all_pages.sh
@@ -22,11 +24,29 @@ echo "==========================================================================
 
 cd "$PROJECT_ROOT"
 
-CSS_FILE="frontend/src/index.css"
+CSS_FILE="frontend/src/styles.css"
 
 if [ ! -f "$CSS_FILE" ]; then
     echo "ОШИБКА: не найден $CSS_FILE" >&2; exit 1
 fi
+
+# --- Детект Python ---
+_detect_python() {
+    for cmd in python python3 py; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            if "$cmd" --version >/dev/null 2>&1; then
+                echo "$cmd"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+PYTHON_CMD="$(_detect_python || true)"
+if [ -z "$PYTHON_CMD" ]; then
+    echo "ОШИБКА: не найден Python" >&2; exit 1
+fi
+echo "Python: $PYTHON_CMD"
 
 # ============================================================================
 # ШАГ 1: Резервная копия
@@ -42,8 +62,6 @@ echo "  [BAK] $CSS_FILE.bak-82"
 echo ""
 echo "--- ШАГ 2: Обновление стилей ---"
 
-# Удаляем старые стили .header, если они есть (чтобы избежать дублирования)
-# Ищем блок .header { ... } и заменяем его
 "$PYTHON_CMD" - "$CSS_FILE" << 'PYEOF'
 import sys
 import re
@@ -152,14 +170,13 @@ new_styles = f"""
 """
 
 # Проверяем, есть ли уже блок .header в файле
-# Если есть — заменяем его, если нет — добавляем в конец
 header_pattern = re.compile(
     r'\.header\s*\{[^}]*\}',
     re.DOTALL
 )
 
 if header_pattern.search(content):
-    # Заменяем существующий блок .header
+    # Заменяем существующий блок .header на новый
     content = header_pattern.sub(new_styles.strip(), content, count=1)
     print("  [FIXED] Заменён существующий блок .header")
 else:
@@ -167,14 +184,15 @@ else:
     content += "\n" + new_styles
     print("  [FIXED] Добавлены стили .header в конец файла")
 
-# Удаляем старые .header-hidden, .header-trigger, если они есть отдельно
+# Удаляем дубликаты .header-hidden и .header-trigger, если они есть
 # (они уже включены в новый блок)
 for old_class in ['.header-hidden', '.header-trigger']:
     pattern = re.compile(rf'{re.escape(old_class)}\s*\{{[^}}]*\}}', re.DOTALL)
-    matches = pattern.findall(content)
+    matches = list(pattern.finditer(content))
     if len(matches) > 1:
         # Оставляем только первое вхождение (из нового блока)
-        content = pattern.sub('', content, count=len(matches)-1)
+        for match in reversed(matches[1:]):
+            content = content[:match.start()] + content[match.end():]
         print(f"  [CLEAN] Удалены дубликаты {old_class}")
 
 css_file.write_text(content, encoding="utf-8")
