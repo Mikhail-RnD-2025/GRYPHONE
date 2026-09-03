@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+// ============================================================
+// GRYPHONE-VISION — application header (v48)
+// ------------------------------------------------------------
+// Left: logo
+// Center: clock
+// Right: hamburger menu (all navigation moved there)
+// ============================================================
+
+import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getSets, switchSet } from '../api'
 import HamburgerMenu from './HamburgerMenu'
@@ -7,8 +15,7 @@ export default function Header() {
   const [sets, setSets] = useState({})
   const [currentSet, setCurrentSet] = useState('')
   const [clock, setClock] = useState('')
-  const [visible, setVisible] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [visible, setVisible] = useState(true)
   const hideTimerRef = useRef(null)
   const isHoveredRef = useRef(false)
   const location = useLocation()
@@ -28,30 +35,14 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
+  // Auto-hide logic (only on monitor page)
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
+    if (!isMonitorPage) {
+      setVisible(true)
+      return
     }
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
-
-  const toggleFullscreen = useCallback(async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen()
-      } else {
-        await document.exitFullscreen()
-      }
-    } catch (err) {
-      console.error('Fullscreen error:', err)
-    }
-  }, [])
-
-  // PATCH-83: Автоскрытие на ВСЕХ страницах
-  useEffect(() => {
     setVisible(false)
-  }, [location.pathname])
+  }, [isMonitorPage])
 
   const cancelHide = () => {
     if (hideTimerRef.current) {
@@ -61,6 +52,7 @@ export default function Header() {
   }
 
   const scheduleHide = () => {
+    if (!isMonitorPage) return
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
       if (!isHoveredRef.current) setVisible(false)
@@ -75,7 +67,7 @@ export default function Header() {
 
   const handleMouseLeave = () => {
     isHoveredRef.current = false
-    scheduleHide()
+    if (isMonitorPage) scheduleHide()
   }
 
   useEffect(() => {
@@ -107,50 +99,38 @@ export default function Header() {
 
   return (
     <>
-      {/* PATCH-83: trigger на ВСЕХ страницах */}
-      <div className="header-trigger" onMouseEnter={handleMouseEnter} />
-
+      {isMonitorPage && (
+        <div className="header-trigger" onMouseEnter={handleMouseEnter} />
+      )}
       <div
-        className={`header ${!visible ? 'header-hidden' : ''}`}
+        className={`header ${isMonitorPage && !visible ? 'header-hidden' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
+        {/* Left: logo + set selector */}
         <div className="header-left">
-          <h1
-            className={`header-title ${isFullscreen ? 'fullscreen-active' : ''}`}
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                toggleFullscreen()
-              }
-            }}
-          >
-            GRYPHONE-VISION
-          </h1>
-        </div>
-
-        <div className="header-center">
-          <span className="header-clock">{clock}</span>
-        </div>
-
-        <div className="header-right">
-          {/* Селектор наборов только на главной */}
+          <h1 className="header-title">GRYPHONE</h1>
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
-              className="set-selector-right"
+              className="set-selector"
               value={currentSet}
               onChange={handleSetChange}
-              title="Выбор набора"
+              title="Select set"
             >
               {Object.entries(sets).map(([id, set]) => (
                 <option key={id} value={id}>{set.name}</option>
               ))}
             </select>
           )}
+        </div>
+
+        {/* Center: clock */}
+        <div className="header-center">
+          <span className="header-clock">{clock}</span>
+        </div>
+
+        {/* Right: hamburger menu */}
+        <div className="header-right">
           <HamburgerMenu />
         </div>
       </div>
