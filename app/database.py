@@ -39,53 +39,31 @@ class Database:
             self._populate_from_json()
 
     def _create_tables(self):
-        """Create database tables if they don't exist."""
+        """Create database tables if they don't exist.
+    
+        Схема читается из database/sql/schema.sql и применяется через
+        executescript(). Это делает schema.sql единственным источником
+        истины для структуры БД.
+        """
+        schema_path = BASE_DIR / "database" / "sql" / "schema.sql"
+        if not schema_path.is_file():
+            raise FileNotFoundError(
+                f"Файл схемы БД не найден: {schema_path}. "
+                f"Запустите update_scripts/74_create_schema_sql.sh"
+            )
+        schema_sql = schema_path.read_text(encoding="utf-8")
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cameras (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                main_url TEXT,
-                sub_url TEXT,
-                enabled INTEGER DEFAULT 1,
-                comment TEXT,
-                audio INTEGER DEFAULT 1,
-                location TEXT
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sets (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                grid_columns INTEGER DEFAULT 4,
-                grid_rows INTEGER DEFAULT 3,
-                is_default INTEGER DEFAULT 0
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS set_cameras (
-                set_id TEXT,
-                camera_id TEXT,
-                PRIMARY KEY (set_id, camera_id),
-                FOREIGN KEY (set_id) REFERENCES sets(id),
-                FOREIGN KEY (camera_id) REFERENCES cameras(id)
-            )
-        """)
-
-        conn.commit()
-        conn.close()
-
+        try:
+            # Включаем внешние ключи (в SQLite по умолчанию выключены).
+            # PRAGMA должна быть выполнена на каждом соединении отдельно.
+            conn.execute("PRAGMA foreign_keys = ON")
+            # Применяем всю схему одним скриптом (поддерживает несколько
+            # CREATE TABLE, PRAGMA, индексы и комментарии).
+            conn.executescript(schema_sql)
+            conn.commit()
+        finally:
+            conn.close()
+    
     def _populate_from_json(self):
         """Populate database tables from JSON files in data/ folder."""
         conn = sqlite3.connect(self.db_path)
