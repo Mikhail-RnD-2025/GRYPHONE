@@ -36,37 +36,9 @@ body {
   flex-shrink: 0;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #1e293b;
-  gap: 12px;
-  flex-shrink: 0;
-}
 
-.header-title {
-  font-size: 1.25rem;
-  color: #2563eb;
-}
 
-.header-clock {
-  font-size: 0.875rem;
-  color: #94a3b8;
-}
 
-.set-selector {
-  background: #1e293b;
-  color: #e0e3e8;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  outline: none;
-}
 .set-selector:hover { border-color: #2563eb; }
 .set-selector:focus {
   border-color: #2563eb;
@@ -341,56 +313,13 @@ body {
   z-index: 1;
 }
 
-.fullscreen-info-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.7) 0%,
-    rgba(0, 0, 0, 0.3) 60%,
-    transparent 100%
-  );
-  pointer-events: none;
-  transition: opacity 0.4s ease;
-  opacity: 1;
-}
 
 .fullscreen-info-overlay.hidden {
   opacity: 0;
 }
 
-.fullscreen-info-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-}
 
-.fullscreen-info-location {
-  font-size: 0.875rem;
-  color: #cbd5e1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.fullscreen-info-badge {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 10px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
 
 .fullscreen-error {
   position: absolute;
@@ -448,18 +377,6 @@ body {
    ============================================================ */
 
 /* Шапка приложения: фиксированная, поверх всего */
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: rgba(11, 13, 16, 0.95);
-  backdrop-filter: blur(8px);
-  transition: transform 0.3s ease, opacity 0.3s ease;
-  transform: translateY(0);
-  opacity: 1;
-}
 
 /* Скрытое состояние: сдвинута вверх и прозрачна */
 .header.header-hidden {
@@ -537,14 +454,6 @@ body {
    ============================================================ */
 
 /* Шапка: три зоны — лево, центр, право */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  height: 56px;
-  position: relative;
-}
 
 /* Левая часть: логотип */
 .header-left {
@@ -572,14 +481,6 @@ body {
 }
 
 /* Правая часть: наборы → навигация → справка */
-.header-right {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 0;
-}
 
 /* Кнопки в шапке */
 .header-btn {
@@ -613,15 +514,6 @@ body {
    Шапка-оверлей (v44): камеры занимают всё пространство,
    шапка налазит сверху и исчезает через 3 сек после ухода мыши
    ============================================================ */
-.header {
-  background: linear-gradient(
-    to bottom,
-    rgba(11, 13, 16, 0.95) 0%,
-    rgba(11, 13, 16, 0.85) 70%,
-    transparent 100%
-  );
-  backdrop-filter: blur(8px);
-}
 
 /* Контент мониторинга: без отступа, на всё пространство */
 .page.monitor-page,
