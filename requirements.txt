@@ -6,6 +6,5 @@
 
 flask
 openpyxl
-pandas
 psutil
 xlrd
