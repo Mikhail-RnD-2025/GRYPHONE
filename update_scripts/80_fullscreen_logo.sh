@@ -1,3 +1,50 @@
+#!/bin/sh
+# ============================================================================
+# 80. update_scripts/80_fullscreen_logo.sh
+# ----------------------------------------------------------------------------
+# НАЗНАЧЕНИЕ:
+#   1. Меняет логотип с "GRYPHONE" на "GRYPHONE-VISION"
+#   2. Добавляет переключение полноэкранного режима по клику на логотип
+#   3. Добавляет визуальные эффекты (курсор, подсветка при наведении)
+#
+# ИДЕМПОТЕНТНОСТЬ: повторный запуск безопасен.
+# ЗАПУСК: ./80_fullscreen_logo.sh
+# ============================================================================
+
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+
+echo "============================================================================"
+echo "80: Логотип GRYPHONE-VISION с полноэкранным режимом"
+echo "Корень проекта: $PROJECT_ROOT"
+echo "============================================================================"
+
+cd "$PROJECT_ROOT"
+
+HEADER_FILE="frontend/src/components/Header.jsx"
+CSS_FILE="frontend/src/index.css"
+
+if [ ! -f "$HEADER_FILE" ]; then
+    echo "ОШИБКА: не найден $HEADER_FILE" >&2; exit 1
+fi
+
+# ============================================================================
+# ШАГ 1: Резервная копия
+# ============================================================================
+echo ""
+echo "--- ШАГ 1: Резервная копия ---"
+cp "$HEADER_FILE" "$HEADER_FILE.bak-80"
+echo "  [BAK] $HEADER_FILE.bak-80"
+
+# ============================================================================
+# ШАГ 2: Обновление Header.jsx
+# ============================================================================
+echo ""
+echo "--- ШАГ 2: Обновление Header.jsx ---"
+
+cat > "$HEADER_FILE" << 'HEADERJSX'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getSets, switchSet } from '../api'
@@ -50,10 +97,14 @@ export default function Header() {
     }
   }, [])
 
-  // PATCH-81: Auto-hide logic на ВСЕХ страницах (а не только на главной)
+  // Auto-hide logic (only on monitor page)
   useEffect(() => {
+    if (!isMonitorPage) {
+      setVisible(true)
+      return
+    }
     setVisible(false)
-  }, [location.pathname])
+  }, [isMonitorPage])
 
   const cancelHide = () => {
     if (hideTimerRef.current) {
@@ -62,8 +113,8 @@ export default function Header() {
     }
   }
 
-  // PATCH-81: Schedule hide на ВСЕХ страницах
   const scheduleHide = () => {
+    if (!isMonitorPage) return
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
       if (!isHoveredRef.current) setVisible(false)
@@ -76,10 +127,9 @@ export default function Header() {
     setVisible(true)
   }
 
-  // PATCH-81: handleMouseLeave на ВСЕХ страницах
   const handleMouseLeave = () => {
     isHoveredRef.current = false
-    scheduleHide()
+    if (isMonitorPage) scheduleHide()
   }
 
   useEffect(() => {
@@ -111,11 +161,11 @@ export default function Header() {
 
   return (
     <>
-      {/* PATCH-81: header-trigger на ВСЕХ страницах */}
-      <div className="header-trigger" onMouseEnter={handleMouseEnter} />
-
+      {isMonitorPage && (
+        <div className="header-trigger" onMouseEnter={handleMouseEnter} />
+      )}
       <div
-        className={`header ${!visible ? 'header-hidden' : ''}`}
+        className={`header ${isMonitorPage && !visible ? 'header-hidden' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -143,7 +193,7 @@ export default function Header() {
           <span className="header-clock">{clock}</span>
         </div>
 
-        {/* Right: set selector (ONLY on monitor page) + hamburger menu */}
+        {/* Right: set selector + hamburger menu */}
         <div className="header-right">
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
@@ -163,3 +213,62 @@ export default function Header() {
     </>
   )
 }
+HEADERJSX
+
+echo "  [FIXED] Header.jsx обновлён"
+echo "  Добавлено: логотип GRYPHONE-VISION + полноэкранный режим по клику"
+
+# ============================================================================
+# ШАГ 3: Добавление стилей
+# ============================================================================
+echo ""
+echo "--- ШАГ 3: Обновление стилей ---"
+
+if [ -f "$CSS_FILE" ]; then
+    if grep -q "header-title.*cursor" "$CSS_FILE" && grep -q "fullscreen-active" "$CSS_FILE"; then
+        echo "  [OK] Стили для логотипа уже есть"
+    else
+        cat >> "$CSS_FILE" << 'CSSEOF'
+
+/* PATCH-80: Логотип GRYPHONE-VISION с полноэкранным режимом */
+.header-title {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.header-title:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  transform: scale(1.02);
+}
+
+.header-title:active {
+  transform: scale(0.98);
+}
+
+.header-title.fullscreen-active {
+  color: #10b981;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.header-title.fullscreen-active:hover {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.1);
+}
+CSSEOF
+        echo "  [FIXED] Добавлены стили для логотипа"
+    fi
+else
+    echo "  [WARN] $CSS_FILE не найден, стили не добавлены"
+fi
+
+echo ""
+echo "============================================================================"
+echo "Готово. Резервная копия: $HEADER_FILE.bak-80"
+echo ""
+echo "Обязательно пересоберите фронтенд:"
+echo "  cd $PROJECT_ROOT/frontend"

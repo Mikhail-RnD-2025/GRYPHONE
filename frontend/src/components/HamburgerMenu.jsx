@@ -1,29 +1,22 @@
 // ============================================================
-//  GRYPHONE — hamburger menu (mobile-style)
-//  ------------------------------------------------------------
-//  Three-stripe button that opens a dropdown with navigation.
-//  Menu items (in order):
-//    1. Status     (dashboard moved here)
-//    2. Analytics  (placeholder)
-//    3. Reports    (placeholder)
-//    4. Cameras
-//    5. Sets
-//    6. Settings
-//    7. Help
+// GRYPHONE — hamburger menu (mobile-style)
+// ------------------------------------------------------------
+// Three-stripe button that opens a dropdown with navigation.
+// PATCH-79: секция выбора наборов убрана (она теперь в Header справа).
 // ============================================================
+
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 const MENU_ITEMS = [
   { path: '/', label: 'Мониторинг', icon: '📹', enabled: true },
-
-  { path: '/status',     label: 'Состояние',  icon: '📊', enabled: true  },
-  { path: '/analytics',  label: 'Аналитика',  icon: '📈', enabled: false },
-  { path: '/reports',    label: 'Отчёты',     icon: '📋', enabled: false },
-  { path: '/cameras',    label: 'Камеры',     icon: '📹', enabled: true  },
-  { path: '/sets',       label: 'Наборы',     icon: '📦', enabled: true  },
-  { path: '/settings',   label: 'Настройки',  icon: '⚙️', enabled: true  },
-  { path: '/help',       label: 'Справка',    icon: '❓', enabled: true  },
+  { path: '/status', label: 'Состояние', icon: '📊', enabled: true },
+  { path: '/analytics', label: 'Аналитика', icon: '📈', enabled: false },
+  { path: '/reports', label: 'Отчёты', icon: '📋', enabled: false },
+  { path: '/cameras', label: 'Камеры', icon: '📹', enabled: true },
+  { path: '/sets', label: 'Наборы', icon: '📦', enabled: true },
+  { path: '/settings', label: 'Настройки', icon: '⚙️', enabled: true },
+  { path: '/help', label: 'Справка', icon: '❓', enabled: true },
 ]
 
 export default function HamburgerMenu() {
@@ -34,7 +27,6 @@ export default function HamburgerMenu() {
   // Close menu on outside click
   useEffect(() => {
     if (!open) return
-
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setOpen(false)

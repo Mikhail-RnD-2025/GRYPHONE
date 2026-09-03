@@ -65,17 +65,21 @@ class Database:
             conn.close()
     
     def _populate_from_json(self):
-        """Populate database tables from JSON files in data/ folder."""
+        """Populate database tables from JSON files in data/ folder.
+        
+        Исправлено (PATCH-77): привязывает только существующие камеры.
+        Если привязок нет — автоматически привязывает все включённые камеры
+        к набору по умолчанию.
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
+        
         # Load cameras.json
-        cameras_file = DATA_DIR / 'cameras.json'
+        cameras_file = DATA_DIR / "cameras.json"
         if cameras_file.exists():
             try:
-                with open(cameras_file, 'r', encoding='utf-8') as f:
+                with open(cameras_file, "r", encoding="utf-8") as f:
                     cameras_data = json.load(f)
-
                 if isinstance(cameras_data, list):
                     for cam in cameras_data:
                         cursor.execute("""
@@ -83,31 +87,29 @@ class Database:
                             (id, name, main_url, sub_url, enabled, comment, audio, location)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
-                            cam.get('id', ''),
-                            cam.get('name', ''),
-                            cam.get('main_url', ''),
-                            cam.get('sub_url', ''),
-                            1 if cam.get('enabled', True) else 0,
-                            cam.get('comment', ''),
-                            1 if cam.get('audio', True) else 0,
-                            cam.get('location', '')
+                            cam.get("id", ""),
+                            cam.get("name", ""),
+                            cam.get("main_url", ""),
+                            cam.get("sub_url", ""),
+                            1 if cam.get("enabled", True) else 0,
+                            cam.get("comment", ""),
+                            1 if cam.get("audio", True) else 0,
+                            cam.get("location", "")
                         ))
-                    print(f"  ✔ Loaded {len(cameras_data)} cameras from data/cameras.json")
+                    print(f" ✔ Loaded {len(cameras_data)} cameras from data/cameras.json")
             except (json.JSONDecodeError, IOError) as e:
-                print(f"  ⚠️  Error loading cameras.json: {e}")
+                print(f" ⚠️ Error loading cameras.json: {e}")
         else:
-            print(f"  ⚠️  cameras.json not found in data/")
-
+            print(f" ⚠️ cameras.json not found in data/")
+        
         # Load sets.json
-        sets_file = DATA_DIR / 'sets.json'
+        sets_file = DATA_DIR / "sets.json"
         if sets_file.exists():
             try:
-                with open(sets_file, 'r', encoding='utf-8') as f:
+                with open(sets_file, "r", encoding="utf-8") as f:
                     sets_data = json.load(f)
-
-                default_set = sets_data.get('default_set', '')
-                sets_dict = sets_data.get('sets', {})
-
+                default_set = sets_data.get("default_set", "")
+                sets_dict = sets_data.get("sets", {})
                 for set_id, set_info in sets_dict.items():
                     is_default = 1 if set_id == default_set else 0
                     cursor.execute("""
@@ -116,28 +118,58 @@ class Database:
                         VALUES (?, ?, ?, ?, ?)
                     """, (
                         set_id,
-                        set_info.get('name', set_id),
-                        set_info.get('grid_columns', 4),
-                        set_info.get('grid_rows', 3),
+                        set_info.get("name", set_id),
+                        set_info.get("max_columns", set_info.get("grid_columns", 4)),
+                        set_info.get("max_rows", set_info.get("grid_rows", 3)),
                         is_default
                     ))
-
-                    camera_ids = set_info.get('cameras', [])
+                    # PATCH-77: привязываем только существующие камеры
+                    camera_ids = set_info.get("cameras", [])
                     for cam_id in camera_ids:
-                        cursor.execute("""
-                            INSERT OR REPLACE INTO set_cameras (set_id, camera_id)
-                            VALUES (?, ?)
-                        """, (set_id, cam_id))
-
-                print(f"  ✔ Loaded {len(sets_dict)} sets from data/sets.json")
+                        # Проверяем, существует ли камера в БД
+                        cursor.execute("SELECT id FROM cameras WHERE id = ?", (cam_id,))
+                        if cursor.fetchone():
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO set_cameras (set_id, camera_id)
+                                VALUES (?, ?)
+                            """, (set_id, cam_id))
+                print(f" ✔ Loaded {len(sets_dict)} sets from data/sets.json")
             except (json.JSONDecodeError, IOError) as e:
-                print(f"  ⚠️  Error loading sets.json: {e}")
+                print(f" ⚠️ Error loading sets.json: {e}")
         else:
-            print(f"  ⚠️  sets.json not found in data/")
-
+            print(f" ⚠️ sets.json not found in data/")
+        
         conn.commit()
+        
+        # PATCH-77: Автоматическая привязка, если привязок нет
+        cursor.execute("SELECT COUNT(*) FROM set_cameras")
+        bindings_count = cursor.fetchone()[0]
+        if bindings_count == 0:
+            print(" ⚠️ Привязок камер к наборам нет — создаю автоматически")
+            # Находим набор по умолчанию
+            cursor.execute("SELECT id FROM sets WHERE is_default = 1 LIMIT 1")
+            default_set_row = cursor.fetchone()
+            if not default_set_row:
+                # Если нет набора по умолчанию, берём первый
+                cursor.execute("SELECT id FROM sets LIMIT 1")
+                default_set_row = cursor.fetchone()
+            if default_set_row:
+                default_set_id = default_set_row[0]
+                # Получаем все включённые камеры
+                cursor.execute("SELECT id FROM cameras WHERE enabled = 1")
+                enabled_cameras = cursor.fetchall()
+                for cam_row in enabled_cameras:
+                    cam_id = cam_row[0]
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO set_cameras (set_id, camera_id)
+                        VALUES (?, ?)
+                    """, (default_set_id, cam_id))
+                conn.commit()
+                print(f" ✔ Привязано {len(enabled_cameras)} камер к набору {default_set_id}")
+            else:
+                print(" ⚠️ Нет наборов для автоматической привязки")
+        
         conn.close()
-
     def get_connection(self):
         """Get a new database connection."""
         return sqlite3.connect(self.db_path)
