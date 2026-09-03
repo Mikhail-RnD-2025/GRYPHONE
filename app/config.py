@@ -30,7 +30,7 @@ from app.database import db
 
 # Пути относительно корня проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SQL_PATH = BASE_DIR / "database" / "sql" / "default_default_config.sql"
+DEFAULT_SQL_PATH = BASE_DIR / "database" / "sql" / "default_config.sql"
 
 logger = logging.getLogger(__name__)
 
