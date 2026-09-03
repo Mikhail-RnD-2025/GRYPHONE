@@ -217,6 +217,9 @@ class Database:
                 return result[0]
         return default
 
+    def save(self, key: str, value):
+        """Алиас для set() — для совместимости с ConfigManager."""
+        return self.set(key, value)
     def set(self, key: str, value):
         """Set a JSON-serialized value by key (for ConfigManager compatibility)."""
         import json
