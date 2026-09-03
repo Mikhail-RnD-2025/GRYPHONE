@@ -7,7 +7,7 @@ export default function Header() {
   const [sets, setSets] = useState({})
   const [currentSet, setCurrentSet] = useState('')
   const [clock, setClock] = useState('')
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const hideTimerRef = useRef(null)
   const isHoveredRef = useRef(false)
@@ -28,7 +28,6 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
-  // PATCH-80: Отслеживаем изменения полноэкранного режима
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
@@ -37,7 +36,6 @@ export default function Header() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
-  // PATCH-80: Переключение полноэкранного режима
   const toggleFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) {
@@ -50,7 +48,7 @@ export default function Header() {
     }
   }, [])
 
-  // PATCH-81: Auto-hide logic на ВСЕХ страницах (а не только на главной)
+  // PATCH-83: Автоскрытие на ВСЕХ страницах
   useEffect(() => {
     setVisible(false)
   }, [location.pathname])
@@ -62,7 +60,6 @@ export default function Header() {
     }
   }
 
-  // PATCH-81: Schedule hide на ВСЕХ страницах
   const scheduleHide = () => {
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
@@ -76,7 +73,6 @@ export default function Header() {
     setVisible(true)
   }
 
-  // PATCH-81: handleMouseLeave на ВСЕХ страницах
   const handleMouseLeave = () => {
     isHoveredRef.current = false
     scheduleHide()
@@ -111,7 +107,7 @@ export default function Header() {
 
   return (
     <>
-      {/* PATCH-81: header-trigger на ВСЕХ страницах */}
+      {/* PATCH-83: trigger на ВСЕХ страницах */}
       <div className="header-trigger" onMouseEnter={handleMouseEnter} />
 
       <div
@@ -119,7 +115,6 @@ export default function Header() {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Left: logo with fullscreen toggle */}
         <div className="header-left">
           <h1
             className={`header-title ${isFullscreen ? 'fullscreen-active' : ''}`}
@@ -138,13 +133,12 @@ export default function Header() {
           </h1>
         </div>
 
-        {/* Center: clock */}
         <div className="header-center">
           <span className="header-clock">{clock}</span>
         </div>
 
-        {/* Right: set selector (ONLY on monitor page) + hamburger menu */}
         <div className="header-right">
+          {/* Селектор наборов только на главной */}
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
               className="set-selector-right"
