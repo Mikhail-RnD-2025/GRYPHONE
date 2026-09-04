@@ -10,6 +10,7 @@ import CamerasPage from './pages/CamerasPage'
 import SetsPage from './pages/SetsPage'
 import SettingsPage from './pages/SettingsPage'
 import HelpPage from './pages/HelpPage'
+import LogsPage from './pages/LogsPage'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/sets" element={<SetsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/help" element={<HelpPage />} />
+        <Route path="/logs" element={<LogsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

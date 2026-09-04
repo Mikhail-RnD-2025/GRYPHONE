@@ -15,6 +15,7 @@ const MENU_ITEMS = [
   { path: '/reports', label: 'Отчёты', icon: '📋', enabled: false },
   { path: '/cameras', label: 'Камеры', icon: '📹', enabled: true },
   { path: '/sets', label: 'Наборы', icon: '📦', enabled: true },
+  { path: '/logs', label: 'Логи', icon: '📜', enabled: true },
   { path: '/settings', label: 'Настройки', icon: '⚙️', enabled: true },
   { path: '/help', label: 'Справка', icon: '❓', enabled: true },
 ]

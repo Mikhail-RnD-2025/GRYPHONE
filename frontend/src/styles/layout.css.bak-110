@@ -1,0 +1,111 @@
+/* ============================================================
+   Страница и контейнеры
+   ============================================================ */
+
+.page {
+  padding: 12px;
+  max-width: none;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.page.monitor-page,
+.monitor-page {
+  padding-top: 0 !important;
+}
+
+.page.monitor-page {
+  padding: 0 !important;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.page:not(.monitor-page) {
+  padding-top: 12px;
+}
+
+/* Сетка камер */
+.fullscreen-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  gap: 2px;
+  background: #0b0d10;
+}
+
+.camera-grid-fullspace {
+  height: calc(100vh - 16px);
+}
+
+/* Секции */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #e0e3e8;
+  margin: 0;
+}
+
+.section-desc {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin: 4px 0 0 0;
+}
+
+/* Вкладки */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.tab-content {
+  background: #0b0d10;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #1e293b;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.empty-state {
+  padding: 12px;
+  border: 1px dashed #999;
+  color: #666;
+  border-radius: 8px;
+}

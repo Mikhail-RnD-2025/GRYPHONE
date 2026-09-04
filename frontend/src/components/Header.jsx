@@ -1,9 +1,11 @@
 // ============================================================
-// GRYPHONE-VISION — application header (v48)
+// GRYPHONE-VISION — application header (v110)
 // ------------------------------------------------------------
-// Left: logo
-// Center: clock
-// Right: hamburger menu (all navigation moved there)
+// Шапка-оверлей с автоскрытием на ВСЕХ страницах.
+// Поведение одинаковое везде:
+//   • Скрывается через 2 сек бездействия
+//   • Появляется при наведении на верх экрана
+//   • Наползает на контент (не резервирует место)
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react'
@@ -15,7 +17,7 @@ export default function Header() {
   const [sets, setSets] = useState({})
   const [currentSet, setCurrentSet] = useState('')
   const [clock, setClock] = useState('')
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useState(false)
   const hideTimerRef = useRef(null)
   const isHoveredRef = useRef(false)
   const location = useLocation()
@@ -35,14 +37,10 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
-  // Auto-hide logic (only on monitor page)
+  // Автоскрытие на ВСЕХ страницах (не только на главной)
   useEffect(() => {
-    if (!isMonitorPage) {
-      setVisible(true)
-      return
-    }
     setVisible(false)
-  }, [isMonitorPage])
+  }, [location.pathname])
 
   const cancelHide = () => {
     if (hideTimerRef.current) {
@@ -52,7 +50,6 @@ export default function Header() {
   }
 
   const scheduleHide = () => {
-    if (!isMonitorPage) return
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
       if (!isHoveredRef.current) setVisible(false)
@@ -67,7 +64,7 @@ export default function Header() {
 
   const handleMouseLeave = () => {
     isHoveredRef.current = false
-    if (isMonitorPage) scheduleHide()
+    scheduleHide()
   }
 
   useEffect(() => {
@@ -99,17 +96,18 @@ export default function Header() {
 
   return (
     <>
-      {isMonitorPage && (
-        <div className="header-trigger" onMouseEnter={handleMouseEnter} />
-      )}
+      {/* Триггер-зона на ВСЕХ страницах */}
+      <div className="header-trigger" onMouseEnter={handleMouseEnter} />
+
       <div
-        className={`header ${isMonitorPage && !visible ? 'header-hidden' : ''}`}
+        className={`header ${!visible ? 'header-hidden' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {/* Left: logo + set selector */}
         <div className="header-left">
           <h1 className="header-title">GRYPHONE</h1>
+          {/* Селектор наборов только на главной */}
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
               className="set-selector"

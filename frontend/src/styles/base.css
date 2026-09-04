@@ -1,0 +1,20 @@
+/* ============================================================
+   Базовые стили (reset, body, html)
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0b0d10;
+  color: #e0e3e8;
+}

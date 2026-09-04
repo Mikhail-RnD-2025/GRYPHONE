@@ -1,0 +1,27 @@
+/* ============================================================
+   Селекторы и формы (для прозрачной шапки)
+   ============================================================ */
+
+.set-selector {
+  background: rgba(30, 41, 59, 0.6);
+  color: #e0e3e8;
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  /* Тень для читаемости */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.set-selector:hover {
+  border-color: #2563eb;
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.set-selector:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
