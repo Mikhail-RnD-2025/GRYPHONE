@@ -144,7 +144,7 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
       )}
 
       {/* Ошибка */}
-      {error && (
+      {error && !(camera.enabled && status === 'недоступна') && (
         <div className="camera-overlay-text" style={{ color: '#dc2626' }}>
           {error}
         </div>
