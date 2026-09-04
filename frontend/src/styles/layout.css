@@ -17,11 +17,6 @@
   flex-shrink: 0;
 }
 
-.page.monitor-page,
-.monitor-page {
-  padding-top: 0 !important;
-}
-
 .page.monitor-page {
   padding: 0 !important;
   height: 100vh;

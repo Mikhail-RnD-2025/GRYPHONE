@@ -1,14 +1,11 @@
 // ============================================================
-// GRYPHONE-VISION — application header (v110)
+// GRYPHONE-VISION — application header (v118)
 // ------------------------------------------------------------
 // Шапка-оверлей с автоскрытием на ВСЕХ страницах.
-// Поведение одинаковое везде:
-//   • Скрывается через 2 сек бездействия
-//   • Появляется при наведении на верх экрана
-//   • Наползает на контент (не резервирует место)
+// Логотип "GRYPHONE - VISION" (синий) + полноэкранный режим по клику.
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getSets, switchSet } from '../api'
 import HamburgerMenu from './HamburgerMenu'
@@ -18,6 +15,7 @@ export default function Header() {
   const [currentSet, setCurrentSet] = useState('')
   const [clock, setClock] = useState('')
   const [visible, setVisible] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const hideTimerRef = useRef(null)
   const isHoveredRef = useRef(false)
   const location = useLocation()
@@ -37,7 +35,29 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
-  // Автоскрытие на ВСЕХ страницах (не только на главной)
+  // Отслеживаем изменения полноэкранного режима
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Переключение полноэкранного режима по клику на логотип
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.error('Fullscreen error:', err)
+    }
+  }, [])
+
+  // Автоскрытие на ВСЕХ страницах
   useEffect(() => {
     setVisible(false)
   }, [location.pathname])
@@ -96,7 +116,6 @@ export default function Header() {
 
   return (
     <>
-      {/* Триггер-зона на ВСЕХ страницах */}
       <div className="header-trigger" onMouseEnter={handleMouseEnter} />
 
       <div
@@ -104,31 +123,41 @@ export default function Header() {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Left: logo + set selector */}
         <div className="header-left">
-          <h1 className="header-title">GRYPHONE</h1>
-          {/* Селектор наборов только на главной */}
+          <h1
+            className={`header-title ${isFullscreen ? 'fullscreen-active' : ''}`}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                toggleFullscreen()
+              }
+            }}
+          >
+            GRYPHONE - VISION
+          </h1>
+        </div>
+
+        <div className="header-center">
+          <span className="header-clock">{clock}</span>
+        </div>
+
+        <div className="header-right">
           {isMonitorPage && Object.keys(sets).length > 0 && (
             <select
               className="set-selector"
               value={currentSet}
               onChange={handleSetChange}
-              title="Select set"
+              title="Выбор набора"
             >
               {Object.entries(sets).map(([id, set]) => (
                 <option key={id} value={id}>{set.name}</option>
               ))}
             </select>
           )}
-        </div>
-
-        {/* Center: clock */}
-        <div className="header-center">
-          <span className="header-clock">{clock}</span>
-        </div>
-
-        {/* Right: hamburger menu */}
-        <div className="header-right">
           <HamburgerMenu />
         </div>
       </div>
