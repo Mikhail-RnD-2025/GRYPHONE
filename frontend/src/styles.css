@@ -36,9 +36,6 @@ body {
   flex-shrink: 0;
 }
 
-
-
-
 .set-selector:hover { border-color: #2563eb; }
 .set-selector:focus {
   border-color: #2563eb;
@@ -317,9 +314,6 @@ body {
 .fullscreen-info-overlay.hidden {
   opacity: 0;
 }
-
-
-
 
 .fullscreen-error {
   position: absolute;
@@ -816,7 +810,3 @@ body {
   color: #666;
   border-radius: 8px;
 }
-
-
-
-
