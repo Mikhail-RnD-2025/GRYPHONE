@@ -1,0 +1,137 @@
+// ============================================================
+// GRYPHONE-VISION — application header (v110)
+// ------------------------------------------------------------
+// Шапка-оверлей с автоскрытием на ВСЕХ страницах.
+// Поведение одинаковое везде:
+//   • Скрывается через 2 сек бездействия
+//   • Появляется при наведении на верх экрана
+//   • Наползает на контент (не резервирует место)
+// ============================================================
+
+import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+import { getSets, switchSet } from '../api'
+import HamburgerMenu from './HamburgerMenu'
+
+export default function Header() {
+  const [sets, setSets] = useState({})
+  const [currentSet, setCurrentSet] = useState('')
+  const [clock, setClock] = useState('')
+  const [visible, setVisible] = useState(false)
+  const hideTimerRef = useRef(null)
+  const isHoveredRef = useRef(false)
+  const location = useLocation()
+  const isMonitorPage = location.pathname === '/'
+
+  useEffect(() => { loadSets() }, [])
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date()
+      setClock(now.toLocaleTimeString('ru-RU', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      }))
+    }
+    updateClock()
+    const interval = setInterval(updateClock, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Автоскрытие на ВСЕХ страницах (не только на главной)
+  useEffect(() => {
+    setVisible(false)
+  }, [location.pathname])
+
+  const cancelHide = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+  }
+
+  const scheduleHide = () => {
+    cancelHide()
+    hideTimerRef.current = setTimeout(() => {
+      if (!isHoveredRef.current) setVisible(false)
+    }, 2000)
+  }
+
+  const handleMouseEnter = () => {
+    isHoveredRef.current = true
+    cancelHide()
+    setVisible(true)
+  }
+
+  const handleMouseLeave = () => {
+    isHoveredRef.current = false
+    scheduleHide()
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    }
+  }, [])
+
+  const loadSets = async () => {
+    try {
+      const data = await getSets()
+      setSets(data.sets || {})
+      setCurrentSet(data.default_set || '')
+    } catch (e) {
+      console.error('Failed to load sets:', e)
+    }
+  }
+
+  const handleSetChange = async (e) => {
+    const setId = e.target.value
+    setCurrentSet(setId)
+    try {
+      await switchSet(setId)
+      window.dispatchEvent(new CustomEvent('set-changed', { detail: { setId } }))
+    } catch (e) {
+      console.error('Failed to switch set:', e)
+    }
+  }
+
+  return (
+    <>
+      {/* Триггер-зона на ВСЕХ страницах */}
+      <div className="header-trigger" onMouseEnter={handleMouseEnter} />
+
+      <div
+        className={`header ${!visible ? 'header-hidden' : ''}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Left: logo + set selector */}
+        <div className="header-left">
+          <h1 className="header-title">GRYPHONE</h1>
+        </div>
+
+        {/* Center: clock */}
+        <div className="header-center">
+          <span className="header-clock">{clock}</span>
+        </div>
+
+        {/* Right: hamburger menu */}
+        <div className="header-right">
+          {/* Селектор наборов только на главной */}
+          {isMonitorPage && Object.keys(sets).length > 0 && (
+            <select
+              className="set-selector"
+              value={currentSet}
+              onChange={handleSetChange}
+              title="Select set"
+            >
+              {Object.entries(sets).map(([id, set]) => (
+                <option key={id} value={id}>{set.name}</option>
+              ))}
+            </select>
+          )}
+          <HamburgerMenu />
+        </div>
+      </div>
+    </>
+  )
+}

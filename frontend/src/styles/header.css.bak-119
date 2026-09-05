@@ -1,0 +1,148 @@
+/* ============================================================
+   Шапка приложения — ПОЛУПРОЗРАЧНЫЙ ГРАДИЕНТ
+   (0.5 → 0.4 → 0.2 с размытием blur(8px))
+   ============================================================ */
+
+/* Базовый блок: фиксированная шапка на ВСЕХ страницах */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  height: 56px;
+  /* Почти прозрачный фон */
+    background: linear-gradient(
+    to bottom,
+    rgba(11, 13, 16, 0.5) 0%,
+    rgba(11, 13, 16, 0.4) 70%,
+    rgba(11, 13, 16, 0.2) 100%
+  );
+  backdrop-filter: blur(8px);
+  /* Без размытия — прозрачность максимальная */
+  /* Тонкая нижняя граница для визуального разделения */
+  border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Скрытое состояние */
+.header.header-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Триггер-зона для появления шапки */
+.header-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 999;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* Левая часть: логотип + селектор наборов */
+.header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: 1px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.header-title:hover {
+  background: rgba(37, 99, 235, 0.15);
+  color: #3b82f6;
+  transform: scale(1.02);
+}
+
+.header-title:active {
+  transform: scale(0.98);
+}
+
+.header-title.fullscreen-active {
+  color: #10b981;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.header-title.fullscreen-active:hover {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+/* Центральная часть: часы */
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.header-clock {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #e0e3e8;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+  /* Тень для читаемости */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Правая часть: меню гамбургера */
+.header-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background: rgba(51, 65, 85, 0.4);
+  color: #e0e3e8;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.header-btn:hover {
+  background: rgba(71, 85, 105, 0.6);
+  transform: scale(1.05);
+}
+
+.header-btn:active {
+  transform: scale(0.95);
+}
