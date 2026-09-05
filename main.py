@@ -15,6 +15,34 @@ import logging
 from app import create_app
 from app.config import config
 
+# ============================================================
+# PATCH-123: очистка старых snapshot при старте сервера
+# ============================================================
+def cleanup_old_snapshots_123():
+    """Удаляет старые snapshot-файлы, чтобы не показывать 'старые потоки'."""
+    import glob
+    import os
+    removed = 0
+    for pattern in ["**/*.jpg", "**/*.jpeg"]:
+        for f in glob.glob(os.path.join("data", pattern), recursive=True):
+            try:
+                os.remove(f)
+                removed += 1
+            except OSError:
+                pass
+    for pattern in ["**/*.jpg", "**/*.jpeg"]:
+        for f in glob.glob(os.path.join("snapshots", pattern), recursive=True):
+            try:
+                os.remove(f)
+                removed += 1
+            except OSError:
+                pass
+    print(f"[PATCH-123] Удалено старых snapshot: {removed}")
+
+cleanup_old_snapshots_123()
+# ============================================================
+
+
 logger = logging.getLogger(__name__)
 
 

@@ -114,12 +114,14 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
       {/* ИСПРАВЛЕНО (v33): видео ВСЕГДА рендерится (не условно).
           Это гарантирует, что videoRef.current доступен в момент
           выполнения эффекта и плеер создаётся корректно. */}
-      <video
+      {status === 'в_сети' && (  /* PATCH-123 */
+        <video
         ref={videoRef}
         muted
         playsInline
         className="camera-video"
       />
+      )}
 
       {/* Шапка: наложение сверху, полупрозрачный градиент */}
       <div className="camera-card-header">
