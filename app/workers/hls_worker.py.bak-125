@@ -143,6 +143,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                         stderr=subprocess.PIPE,
                     )
 
+                    first_frame = asyncio.Event()  # PATCH-122v4
                     async def _read_logs():
                         buf = b""
                         try:
@@ -160,6 +161,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                                     )
                                     m = _STATS_RE.search(text)
                                     if m:
+                                        first_frame.set()  # PATCH-122v4
                                         manager.set_status(
                                             route_id, "в_сети", "Поток активен",
                                             metrics={
@@ -172,7 +174,43 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                             pass
 
                     log_task = asyncio.create_task(_read_logs())
-                    return_code = await proc.wait()  # PATCH-125v2
+                    # PATCH-122v4: таймаут подключения — ждём первый кадр,
+                    # завершение процесса или connect_timeout секунд
+                    connect_timeout = global_cfg.get("connect_timeout", 15)
+                    _wf = asyncio.ensure_future(first_frame.wait())
+                    _we = asyncio.ensure_future(proc.wait())
+                    _done, _pending = await asyncio.wait(
+                        [_wf, _we],
+                        timeout=connect_timeout,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if _we in _done:
+                        # процесс завершился сам (ошибка или успех)
+                        return_code = _we.result()
+                    elif _wf in _done:
+                        # первый кадр получен — поток активен
+                        return_code = await proc.wait()
+                    else:
+                        # таймаут: ffmpeg завис без кадров
+                        logger.warning("⏱ %s: нет кадров за %s с — таймаут", route_id, connect_timeout)
+                        try:
+                            proc.kill()
+                        except ProcessLookupError:
+                            pass
+                        return_code = await proc.wait()
+                        log_task.cancel()
+                        for _t in (_wf, _we):
+                            if not _t.done():
+                                _t.cancel()
+                        manager.set_status(route_id, "недоступна",
+                                           f"Таймаут подключения ({connect_timeout} с)")
+                        backoff = min(backoff * 2, backoff_max)
+                        await asyncio.sleep(backoff)
+                        continue
+                    for _t in (_wf, _we):
+                        if not _t.done():
+                            _t.cancel()
+
                     log_task.cancel()
                     success = (return_code == 0)
                 except Exception as e:
