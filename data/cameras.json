@@ -33,7 +33,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-005",
     "main_url": "rtsp://admin:admin@172.16.103.103:554/live/main",
     "name": "210-P-GAVw-005",
@@ -41,7 +41,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-006",
     "main_url": "rtsp://admin:admin@172.16.103.104:554/live/main",
     "name": "210-P-GAVw-006",
@@ -49,7 +49,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-007",
     "main_url": "rtsp://admin:admin@172.16.103.105:554/live/main",
     "name": "210-P-GAVw-007",
@@ -57,7 +57,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-008",
     "main_url": "rtsp://admin:admin@172.16.103.106:554/live/main",
     "name": "210-P-GAVw-008",
@@ -65,7 +65,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-009",
     "main_url": "rtsp://admin:admin@172.16.103.107:554/live/main",
     "name": "210-P-GAVw-009",
@@ -73,7 +73,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-010",
     "main_url": "rtsp://admin:admin@172.16.103.108:554/live/main",
     "name": "210-P-GAVw-010",
@@ -81,7 +81,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-011",
     "main_url": "rtsp://admin:admin@172.16.103.109:554/live/main",
     "name": "210-P-GAVw-011",
@@ -121,7 +121,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-016",
     "main_url": "rtsp://admin:admin@172.16.103.114:554/live/main",
     "name": "210-P-GAVw-016",
@@ -129,7 +129,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-017",
     "main_url": "rtsp://admin:admin@172.16.103.115:554/live/main",
     "name": "210-P-GAVw-017",
@@ -137,7 +137,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-018",
     "main_url": "rtsp://admin:admin@172.16.103.116:554/live/main",
     "name": "210-P-GAVw-018",
@@ -145,7 +145,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-019",
     "main_url": "rtsp://admin:admin@172.16.103.117:554/live/main",
     "name": "210-P-GAVw-019",
@@ -153,7 +153,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-020",
     "main_url": "rtsp://admin:admin@172.16.103.118:554/live/main",
     "name": "210-P-GAVw-020",
@@ -161,7 +161,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-021",
     "main_url": "rtsp://admin:admin@172.16.103.119:554/live/main",
     "name": "210-P-GAVw-021",
@@ -169,7 +169,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-022",
     "main_url": "rtsp://admin:admin@172.16.103.120:554/live/main",
     "name": "210-P-GAVw-022",
@@ -177,7 +177,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-023",
     "main_url": "rtsp://admin:admin@172.16.103.121:554/live/main",
     "name": "210-P-GAVw-023",
@@ -185,7 +185,7 @@
   },
   {
     "comment": "",
-    "enabled": true,
+    "enabled": false,
     "id": "210-P-GAVw-024",
     "main_url": "rtsp://admin:admin@172.16.103.122:554/live/main",
     "name": "210-P-GAVw-024",
