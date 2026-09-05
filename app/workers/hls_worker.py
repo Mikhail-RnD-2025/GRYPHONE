@@ -143,7 +143,6 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                         stderr=subprocess.PIPE,
                     )
 
-                    first_frame = asyncio.Event()  # PATCH-122v4
                     async def _read_logs():
                         buf = b""
                         try:
@@ -161,7 +160,6 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                                     )
                                     m = _STATS_RE.search(text)
                                     if m:
-                                        first_frame.set()  # PATCH-122v4
                                         manager.set_status(
                                             route_id, "в_сети", "Поток активен",
                                             metrics={
@@ -176,8 +174,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                     log_task = asyncio.create_task(_read_logs())
                     # PATCH-122v4: таймаут подключения — ждём первый кадр,
                     # завершение процесса или connect_timeout секунд
-                    connect_timeout = global_cfg.get("connect_timeout", 15)
-                    _wf = asyncio.ensure_future(first_frame.wait())
+                    return_code = await proc.wait()  # PATCH-125v2
                     _we = asyncio.ensure_future(proc.wait())
                     _done, _pending = await asyncio.wait(
                         [_wf, _we],
