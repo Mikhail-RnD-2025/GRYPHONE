@@ -53,6 +53,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
         return
 
     logger.info("🔍 Воркер запущен: %s", route_id)
+    current_proc = None  # PATCH-132: ссылка на активный ffmpeg процесс
     try:
         while True:
             cam = camera_service.get_camera(cam_id)
@@ -77,13 +78,22 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
             backoff = 1
             manager.clear_log(route_id)
 
-            try:
-                loop = asyncio.get_running_loop()
-                codec, profile, pix_fmt = await loop.run_in_executor(
-                    None, probe_camera, url, global_cfg
-                )
-            except Exception:
-                codec, profile, pix_fmt = "unknown", "unknown", "unknown"
+            # PATCH-131: retry для probe_camera
+            codec, profile, pix_fmt = "unknown", "unknown", "unknown"
+            for _attempt in range(2):  # 2 попытки
+                try:
+                    loop = asyncio.get_running_loop()
+                    codec, profile, pix_fmt = await loop.run_in_executor(
+                        None, probe_camera, url, global_cfg
+                    )
+                    if codec and codec != "unknown":
+                        break  # успех
+                    if _attempt == 0:
+                        logger.info("🔄 %s: ffprobe retry (пауза 3 сек)", route_id)
+                        await asyncio.sleep(3)  # PATCH-132: больше пауза между retry
+                except Exception:
+                    if _attempt == 0:
+                        await asyncio.sleep(1)
             # PATCH-124v6: устанавливаем статус на основе ffprobe
             if codec and codec != "unknown":
                 logger.info("✅ %s: поток доступен (codec=%s)", route_id, codec)
@@ -92,8 +102,10 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
             else:
                 logger.warning("⚠️ %s: поток недоступен (codec=unknown)", route_id)
                 manager.set_status(route_id, "недоступна", "Кодек не определён")
-                await asyncio.sleep(min(backoff * 2, 15))
-                backoff = min(backoff * 2, 15)
+                # PATCH-131: увеличенный backoff (камера "остывает" после kill)
+                backoff = max(backoff, 15)  # минимум 15 сек
+                backoff = min(backoff * 2, 30)
+                await asyncio.sleep(backoff)
                 continue
 
             mode_cfg = ff_cfg.get("mode", "auto")
@@ -137,11 +149,19 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                     logger.info("🔇 %s: аудио отключено", route_id)
 
                 try:
+                    # PATCH-131: задержка 1 сек (camera cooldown)
+                    await asyncio.sleep(1)
                     proc = await asyncio.create_subprocess_exec(
                         *cmd,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.PIPE,
                     )
+                    current_proc = proc  # PATCH-132
+
+                    # PATCH-130: ffmpeg запущен — сразу статус 'в_сети'.
+                    # Без этого внутренний цикл сбрасывает на 'подключение',
+                    # и PATCH-123 скрывает video → чёрный экран.
+                    manager.set_status(route_id, "в_сети", "Поток запущен, ожидание первого кадра")
 
                     async def _read_logs():
                         buf = b""
@@ -199,7 +219,49 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
         # через контекстное меню) устанавливаем статус «недоступна».
         manager.set_status(route_id, "недоступна", "Камера отключена")
     finally:
-        # ИСПРАВЛЕНО (v33): cleanup не удаляет статус, а сохраняет
-        # его как «недоступна» (см. обновлённый stream_manager.py).
+        # PATCH-133: гарантированный kill текущего ffmpeg процесса
+        if current_proc is not None:
+            try:
+                if current_proc.returncode is None:
+                    current_proc.kill()
+                    try:
+                        await current_proc.wait()
+                    except Exception:
+                        pass
+                    logger.info("💀 %s: ffmpeg процесс убит", route_id)
+            except Exception as e:
+                logger.warning("⚠️ %s: ошибка kill: %s", route_id, e)
+
+        # PATCH-133: дополнительная очистка через psutil / wmic / pkill
+        try:
+            import psutil
+            for p in psutil.process_iter(['pid', 'cmdline']):
+                try:
+                    cmdline = " ".join(p.info.get('cmdline') or [])
+                    if f"hls_cache/camera/{route_id}" in cmdline:
+                        p.kill()
+                        logger.info("💀 %s: psutil убил PID %s", route_id, p.info['pid'])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except ImportError:
+            try:
+                import subprocess as _sp
+                import sys as _sys
+                if _sys.platform == "win32":
+                    # Windows: wmic для kill по cmdline
+                    _sp.run(
+                        f'wmic process where "CommandLine like '%{route_id}%'" '
+                        f'call terminate',
+                        shell=True, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, timeout=3
+                    )
+                else:
+                    # Unix: pkill
+                    _sp.run(
+                        ["pkill", "-9", "-f", f"hls_cache/camera/{route_id}"],
+                        stderr=_sp.DEVNULL, timeout=2
+                    )
+            except Exception:
+                pass  # все fallbacks не сработали
+
         manager.cleanup(route_id)
         logger.info("🧹 Воркер завершён: %s", route_id)

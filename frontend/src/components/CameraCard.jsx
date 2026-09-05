@@ -17,8 +17,7 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
   const [error, setError] = useState(null)
 
   // В сетке субпоток; если его нет — основной.
-  const hasSub = camera.sub_url && camera.sub_url.trim() !== '' &&
-                 camera.sub_url !== camera.main_url
+  const hasSub = !!camera.sub_url  // PATCH-130: sub даже если равен main
   const routeId = hasSub ? `${camera.id}_sub` : `${camera.id}_main`
   const streamUrl = `/hls/camera/${routeId}/index.m3u8`
 
