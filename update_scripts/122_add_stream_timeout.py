@@ -2,22 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 ============================================================================
-122. update_scripts/122_add_stream_timeout.py
+122. update_scripts/122_add_ffmpeg_timeout.py (версия 4, финальная)
 ----------------------------------------------------------------------------
 НАЗНАЧЕНИЕ:
-  Добавляет таймаут подключения RTSP-потока (10 секунд) в стример.
+  Добавляет таймаут первого кадра ffmpeg-процесса в hls_worker.py.
 
-ПРОБЛЕМА:
-  cv2.VideoCapture(url) может блокироваться бесконечно, из-за чего
-  камера навсегда застревает в статусе 'подключение'.
+ИСПРАВЛЕНО в v4:
+  • Убран R4 (ломал синтаксис, и он не нужен — probe_camera
+    уже имеет таймаут внутри функции probe_timeout)
+  • Применяются только R1, R2, R3 — ключевые исправления
 
-РЕШЕНИЕ:
-  1. Подключение выполняется в отдельном потоке с join(timeout=10)
-  2. При таймауте возвращается заглушка _TimeoutCap (isOpened() = False)
-  3. Существующая логика стримера сама переведёт камеру в 'недоступна'
-
-ИДЕМПОТЕНТНОСТЬ: маркер PATCH-122, повторный запуск безопасен.
-ЗАПУСК: python update_scripts/122_add_stream_timeout.py
+ИДЕМПОТЕНТНОСТЬ: маркер PATCH-122v4, повторный запуск безопасен.
+ЗАПУСК: python update_scripts/122_add_ffmpeg_timeout.py
 ============================================================================
 """
 
@@ -30,192 +26,159 @@ def main():
     project_root = Path.cwd()
 
     print("=" * 76)
-    print("122: Таймаут подключения RTSP-потока (10 сек)")
+    print("122 v4: Таймаут ffmpeg-процесса (финальная версия)")
     print(f"Корень проекта: {project_root}")
     print("=" * 76)
     print()
 
-    # ========================================================================
-    # ШАГ 1: Поиск файлов стримера
-    # ========================================================================
-    print("--- ШАГ 1: Поиск файлов с cv2.VideoCapture ---")
+    worker = project_root / "app" / "workers" / "hls_worker.py"
 
-    target_files = []
-    for py_file in project_root.rglob("*.py"):
-        # Пропускаем бэкапы, node_modules, update_scripts
-        if any(part in str(py_file) for part in ['.bak', 'node_modules', 'update_scripts', '.git', 'venv', 'dist']):
-            continue
-        try:
-            content = py_file.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        if "cv2.VideoCapture" in content:
-            target_files.append(py_file)
-
-    if not target_files:
-        print("  [ERROR] Файлы с cv2.VideoCapture не найдены")
+    # ========================================================================
+    # ШАГ 1: Проверка файла
+    # ========================================================================
+    print("--- ШАГ 1: Проверка hls_worker.py ---")
+    if not worker.exists():
+        print("  [ERROR] app/workers/hls_worker.py не найден")
         sys.exit(1)
 
-    for f in target_files:
-        print(f"  [FOUND] {f.relative_to(project_root)}")
+    content = worker.read_text(encoding="utf-8")
+
+    if "PATCH-122v4" in content:
+        print("  [OK] Таймаут уже применён (маркер PATCH-122v4)")
+        print("=" * 76)
+        return
+
+    # Откатываем частичные применения v2/v3
+    if "PATCH-122v" in content:
+        print("  [INFO] Обнаружена частичная версия — восстанавливаю из бэкапа")
+        backup = worker.with_suffix(".py.bak-122")
+        if backup.exists():
+            worker.write_text(backup.read_text(encoding="utf-8"), encoding="utf-8")
+            content = worker.read_text(encoding="utf-8")
+            print("  [OK] Восстановлено из .bak-122")
+
+    backup = worker.with_suffix(".py.bak-122")
+    backup.write_text(content, encoding="utf-8")
+    print(f"  [BAK] {backup.name}")
     print()
 
     # ========================================================================
-    # ШАГ 2: Применение таймаута
+    # ШАГ 2: Применение изменений (только R1, R2, R3)
     # ========================================================================
-    print("--- ШАГ 2: Применение таймаута ---")
+    print("--- ШАГ 2: Применение изменений ---")
 
-    timeout_helper = '''
-# ============================================================
-# PATCH-122: Таймаут подключения RTSP-потока
-# ============================================================
-STREAM_CONNECT_TIMEOUT = 10  # секунд на попытку подключения
+    # R1: создаём событие первого кадра перед определением _read_logs
+    content, n1 = re.subn(
+        r'([ \t]*)async def _read_logs\(\):',
+        lambda m: (m.group(1) + "first_frame = asyncio.Event()  # PATCH-122v4\n"
+                   + m.group(1) + "async def _read_logs():"),
+        content, count=1
+    )
+    print(f"  [{'OK' if n1 else 'WARN'}] R1: событие first_frame создано" if n1
+          else "  [WARN] R1: не найдено место для first_frame")
 
+    # R2: устанавливаем событие при первой stats-строке
+    content, n2 = re.subn(
+        r'(m = _STATS_RE\.search\(text\)\s*\n([ \t]*)if m:)',
+        lambda m: (m.group(1) + "\n" + m.group(2)
+                   + "    first_frame.set()  # PATCH-122v4"),
+        content, count=1
+    )
+    print(f"  [{'OK' if n2 else 'WARN'}] R2: first_frame.set() при первом кадре" if n2
+          else "  [WARN] R2: не найден блок stats")
 
-class _TimeoutCap:
-    """Заглушка для случая, когда поток не открылся за таймаут."""
-    def isOpened(self):
-        return False
-    def isOpened_(self):
-        return False
-    def release(self):
-        pass
-    def read(self):
-        return False, None
-    def set(self, *args, **kwargs):
-        return False
-    def get(self, *args, **kwargs):
-        return 0
+    # R3: заменяем бесконечный await proc.wait() на ожидание с таймаутом
+    def _r3(m):
+        indent = m.group(1)
+        return f"""{indent}# PATCH-122v4: таймаут подключения — ждём первый кадр,
+{indent}# завершение процесса или connect_timeout секунд
+{indent}connect_timeout = global_cfg.get("connect_timeout", 15)
+{indent}_wf = asyncio.ensure_future(first_frame.wait())
+{indent}_we = asyncio.ensure_future(proc.wait())
+{indent}_done, _pending = await asyncio.wait(
+{indent}    [_wf, _we],
+{indent}    timeout=connect_timeout,
+{indent}    return_when=asyncio.FIRST_COMPLETED,
+{indent})
+{indent}if _we in _done:
+{indent}    # процесс завершился сам (ошибка или успех)
+{indent}    return_code = _we.result()
+{indent}elif _wf in _done:
+{indent}    # первый кадр получен — поток активен
+{indent}    return_code = await proc.wait()
+{indent}else:
+{indent}    # таймаут: ffmpeg завис без кадров
+{indent}    logger.warning("⏱ %s: нет кадров за %s с — таймаут", route_id, connect_timeout)
+{indent}    try:
+{indent}        proc.kill()
+{indent}    except ProcessLookupError:
+{indent}        pass
+{indent}    return_code = await proc.wait()
+{indent}    log_task.cancel()
+{indent}    for _t in (_wf, _we):
+{indent}        if not _t.done():
+{indent}            _t.cancel()
+{indent}    manager.set_status(route_id, "недоступна",
+{indent}                       f"Таймаут подключения ({{connect_timeout}} с)")
+{indent}    backoff = min(backoff * 2, backoff_max)
+{indent}    await asyncio.sleep(backoff)
+{indent}    continue
+{indent}for _t in (_wf, _we):
+{indent}    if not _t.done():
+{indent}        _t.cancel()
+"""
 
-
-def open_stream_with_timeout(url, timeout=STREAM_CONNECT_TIMEOUT):
-    """
-    Открывает видеопоток с таймаутом.
-    Возвращает объект VideoCapture или _TimeoutCap при неудаче/таймауте.
-    """
-    import threading
-    result = {}
-
-    def _opener():
-        try:
-            cap = cv2.VideoCapture(url)
-            result["cap"] = cap
-            result["ok"] = cap.isOpened()
-        except Exception:
-            result["cap"] = None
-            result["ok"] = False
-
-    thread = threading.Thread(target=_opener, daemon=True)
-    thread.start()
-    thread.join(timeout)
-
-    if thread.is_alive():
-        # Подключение заняло больше таймаута — считаем камеру недоступной
-        return _TimeoutCap()
-
-    if result.get("ok") and result.get("cap") is not None:
-        return result["cap"]
-    return _TimeoutCap()
-# ============================================================
-# Конец PATCH-122
-# ============================================================
-'''
-
-    for py_file in target_files:
-        print(f"\n  Обработка: {py_file.relative_to(project_root)}")
-
-        # Бэкап
-        backup = py_file.with_suffix(py_file.suffix + ".bak-122")
-        backup.write_text(py_file.read_text(encoding="utf-8"), encoding="utf-8")
-        print(f"    [BAK] {backup.name}")
-
-        content = py_file.read_text(encoding="utf-8")
-
-        # Идемпотентность
-        if "PATCH-122" in content:
-            print("    [OK] Таймаут уже применён (маркер PATCH-122)")
-            continue
-
-        changes = []
-
-        # 1. Добавляем import threading, если нет
-        if "import threading" not in content:
-            # Вставляем после первого import cv2 или первого import
-            if "import cv2" in content:
-                content = content.replace("import cv2", "import cv2\nimport threading", 1)
-            else:
-                content = re.sub(r'(import [a-zA-Z_]+)', r'import threading\n\1', content, count=1)
-            changes.append("добавлен import threading")
-
-        # 2. Вставляем функцию таймаута после импортов
-        # Находим позицию после последнего import в начале файла
-        import_matches = list(re.finditer(r'^(?:import|from)\s.+$', content, re.MULTILINE))
-        if import_matches:
-            insert_pos = import_matches[-1].end()
-            content = content[:insert_pos] + "\n" + timeout_helper + content[insert_pos:]
-            changes.append("вставлена функция open_stream_with_timeout")
-        else:
-            content = timeout_helper + "\n" + content
-            changes.append("вставлена функция open_stream_with_timeout (в начало)")
-
-        # 3. Заменяем cv2.VideoCapture( на open_stream_with_timeout(
-        count_before = content.count("cv2.VideoCapture(")
-        content = content.replace("cv2.VideoCapture(", "open_stream_with_timeout(")
-        # Но НЕ заменяем внутри самой функции-хелпера (там должен остаться cv2.VideoCapture)
-        # Возвращаем оригинал внутри хелпера
-        content = content.replace(
-            "cap = open_stream_with_timeout(url)",
-            "cap = cv2.VideoCapture(url)"
-        )
-        count_after = count_before - 1 if count_before > 0 else 0
-        changes.append(f"заменено вызовов VideoCapture: {count_after}")
-
-        py_file.write_text(content, encoding="utf-8")
-
-        for change in changes:
-            print(f"    [FIXED] {change}")
-
+    content, n3 = re.subn(
+        r'([ \t]*)return_code = await proc\.wait\(\)',
+        _r3, content, count=1
+    )
+    print(f"  [{'OK' if n3 else 'WARN'}] R3: await proc.wait() заменён на ожидание с таймаутом" if n3
+          else "  [WARN] R3: не найден await proc.wait()")
     print()
+
+    if not (n1 and n2 and n3):
+        print("  [FAIL] Ключевые замены не применены — файл не изменён")
+        print(f"  Восстановите: cp {backup} {worker}")
+        sys.exit(1)
 
     # ========================================================================
     # ШАГ 3: Проверка синтаксиса
     # ========================================================================
     print("--- ШАГ 3: Проверка синтаксиса ---")
-    all_ok = True
-    for py_file in target_files:
-        try:
-            compile(py_file.read_text(encoding="utf-8"), str(py_file), "exec")
-            print(f"  [OK] {py_file.relative_to(project_root)}: синтаксис корректен")
-        except SyntaxError as e:
-            print(f"  [FAIL] {py_file.relative_to(project_root)}: {e}")
-            backup = py_file.with_suffix(py_file.suffix + ".bak-122")
-            print(f"         Восстановите: cp {backup} {py_file}")
-            all_ok = False
+    try:
+        compile(content, str(worker), "exec")
+        print("  [OK] Синтаксис корректен")
+    except SyntaxError as e:
+        print(f"  [FAIL] Ошибка синтаксиса: {e}")
+        print(f"  Восстановите: cp {backup} {worker}")
+        sys.exit(1)
+
+    worker.write_text(content, encoding="utf-8")
+    print("  [OK] hls_worker.py сохранён")
     print()
 
     # ========================================================================
     # ИТОГ
     # ========================================================================
     print("=" * 76)
-    if not all_ok:
-        print("ВНИМАНИЕ: обнаружены ошибки синтаксиса — восстановите из бэкапов!")
-        print("=" * 76)
-        sys.exit(1)
-
-    print("Готово! Таймаут подключения добавлен.")
+    print("✅ Готово! Таймаут ffmpeg добавлен (v4).")
     print()
     print("Как это работает:")
-    print("  1. Воркер вызывает open_stream_with_timeout(url)")
-    print("  2. Подключение идёт в отдельном потоке, ожидание максимум 10 сек")
-    print("  3. Если поток не открылся за 10 сек — возвращается заглушка")
-    print("  4. isOpened() = False → стример переводит камеру в 'недоступна'")
+    print("  1. Воркер запускает ffmpeg и ждёт максимум 15 сек")
+    print("  2. Если появился первый кадр → поток активен ('в_сети')")
+    print("  3. Если ffmpeg завершился сам → обработка ошибки (как раньше)")
+    print("  4. Если за 15 сек нет кадров → kill, статус 'недоступна',")
+    print("     backoff и повторная попытка")
     print()
-    print("Результат:")
-    print("  • Камеры больше НЕ застревают в 'подключение' навсегда")
-    print("  • Через ~10 сек недоступная камера получает статус 'недоступна'")
+    print("Настройка таймаута (опционально):")
+    print("  конфиг → ffmpeg.global.connect_timeout = 20 (секунды)")
     print()
     print("Перезапустите сервер:")
     print("  python main.py")
+    print()
+    print("В логах сервера ожидайте:")
+    print("  ⏱ camera/xxx: нет кадров за 15 с — таймаут")
+    print("  → статус 'недоступна' вместо вечного 'подключение'")
     print("=" * 76)
 
 
