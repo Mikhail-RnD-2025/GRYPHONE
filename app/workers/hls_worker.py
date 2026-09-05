@@ -84,6 +84,17 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                 )
             except Exception:
                 codec, profile, pix_fmt = "unknown", "unknown", "unknown"
+            # PATCH-124v6: устанавливаем статус на основе ffprobe
+            if codec and codec != "unknown":
+                logger.info("✅ %s: поток доступен (codec=%s)", route_id, codec)
+                manager.set_status(route_id, "в_сети", "Поток активен",
+                    metrics={"codec": codec, "profile": profile})
+            else:
+                logger.warning("⚠️ %s: поток недоступен (codec=unknown)", route_id)
+                manager.set_status(route_id, "недоступна", "Кодек не определён")
+                await asyncio.sleep(min(backoff * 2, 15))
+                backoff = min(backoff * 2, 15)
+                continue
 
             mode_cfg = ff_cfg.get("mode", "auto")
             if mode_cfg == "copy":
