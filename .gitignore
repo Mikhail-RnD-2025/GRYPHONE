@@ -24,3 +24,7 @@ data/
 
 # Local configuration (optional: keep if you want to track default configs)
 # data/config.json
+*.bak-*
+
+# Бэкапы патчей
+*.bak-*
