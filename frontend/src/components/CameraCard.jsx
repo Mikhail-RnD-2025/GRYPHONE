@@ -23,7 +23,7 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
 
   // ИСПРАВЛЕНО (v33): shouldPlay не зависит от статуса «недоступна»,
   // т.к. статус может задерживаться. Достаточно флага включена.
-  const shouldPlay = camera.enabled
+  const shouldPlay = camera.enabled && status === 'в_сети'  // PATCH-134
 
   // ИСПРАВЛЕНО (v33): эффект корректно управляет плеером при
   // изменении статуса камеры. Видео элемент всегда рендерится,
@@ -49,6 +49,15 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
     // всегда рендерится), выходим.
     if (!video) return
 
+    // PATCH-134: инициализируем hls.js только при status === 'в_сети'
+    if (status !== 'в_сети') {
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+      return
+    }
+
     setError(null)
 
     if (Hls.isSupported()) {
@@ -63,7 +72,15 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
         video.play().catch(() => {})
       })
       hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
+        // PATCH-136: retry при 404 (ffmpeg ещё не создал m3u8)
+      if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.response && data.response.code === 404) {
+        console.log(`🔄 ${camera.id}: retry m3u8 через 2 сек (ffmpeg запускается)`)
+        setTimeout(() => {
+          if (hlsRef.current) hlsRef.current.loadSource(streamUrl)
+        }, 2000)
+        return
+      }
+      if (data.fatal) {
           setError('Поток недоступен')
           hls.destroy()
           hlsRef.current = null
@@ -81,7 +98,7 @@ export default function CameraCard({ camera, status, onContextMenu, onFullscreen
         hlsRef.current = null
       }
     }
-  }, [streamUrl, shouldPlay])
+  }, [streamUrl, shouldPlay, status])  // PATCH-134: перезапуск при смене статуса
 
   const handleDoubleClick = () => {
     if (onFullscreen) onFullscreen(camera)
