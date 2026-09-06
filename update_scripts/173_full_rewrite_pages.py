@@ -1,4 +1,21 @@
-import { useState, useEffect, useRef } from 'react'
+#!/usr/bin/env python3
+"""
+173. update_scripts/173_full_rewrite_pages.py
+----------------------------------------------------------------------------
+Полная перезапись SetsPage.jsx и MonitorPage.jsx в финальное состояние:
+  • draft mode + save/cancel, drag&drop + onDragEnd, контекстное меню
+  • aspect_ratio (16:9 / 4:3) влияет на рендер
+  • useFitCellSize (callback-ref) — сетка вписана в окно без скролла
+  • fallback minmax(0,1fr) до расчёта — нет чёрного экрана
+
+ЗАПУСК: python update_scripts/173_full_rewrite_pages.py
+"""
+
+import sys
+from pathlib import Path
+
+
+SETS_JSX = r'''import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import '../styles/sets.css'
 
@@ -78,7 +95,7 @@ export default function SetsManagerPage() {
     }
   }, [ctxMenu])
 
-  async function loadData(silent = false) {  // PATCH-176
+  async function loadData() {
     setLoading(true)
     try {
       const [setsRes, camsRes] = await Promise.all([
@@ -98,15 +115,11 @@ export default function SetsManagerPage() {
       setDirty(false)
       setCameras(normalizeCameras(camsData))
 
-      if (!silent) {  // PATCH-176: не трогаем activeSetId при тихой загрузке
-        const currentRes = await fetch('/api/sets/current')
-        const currentData = await currentRes.json()
-        setActiveSetId(currentData.set_id || currentData.id || (setsList[0] && setsList[0].set_id))
-      }
-      return setsList
+      const currentRes = await fetch('/api/sets/current')
+      const currentData = await currentRes.json()
+      setActiveSetId(currentData.set_id || currentData.id || (setsList[0] && setsList[0].set_id))
     } catch (e) {
       console.error('[SetsPage] Ошибка загрузки:', e)
-      return []
     } finally {
       setLoading(false)
     }
@@ -154,7 +167,6 @@ export default function SetsManagerPage() {
 
   async function saveChanges() {
     setSaving(true)
-    const prevActiveId = activeSetId  // PATCH-176: помним выбор пользователя
     try {
       const serverIds = new Set(serverSets.map(s => s.set_id))
       const draftIds = new Set(sets.map(s => s.set_id))
@@ -200,10 +212,7 @@ export default function SetsManagerPage() {
         }
       }
 
-      const freshSets = await loadData(true)  // PATCH-176: тихая загрузка
-      if (prevActiveId && freshSets.some(s => s.set_id === prevActiveId)) {
-        setActiveSetId(prevActiveId)  // возвращаем выбор пользователя
-      }
+      await loadData()
     } catch (e) {
       console.error('[SetsPage] Ошибка сохранения:', e)
       alert('Ошибка сохранения: ' + e.message)
@@ -318,16 +327,15 @@ export default function SetsManagerPage() {
     closeCtxMenu()
   }
 
-  // PATCH-174: хуки строго ДО условного return (Rules of Hooks)
-  const maxCols = activeSet ? activeSet.max_columns : 1
-  const maxRows = activeSet ? activeSet.max_rows : 1
-  const aspectNum = ((activeSet && activeSet.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
-  const [gridRef, cellSize] = useFitCellSize(maxCols, maxRows, aspectNum)
-
   if (loading) return <div className="sets-loading">Загрузка...</div>
 
   const gridCameras = (activeSet ? activeSet.camera_ids : [])
     .map(id => cameras.find(c => c.id === id)).filter(Boolean)
+  const maxCols = activeSet ? activeSet.max_columns : 1
+  const maxRows = activeSet ? activeSet.max_rows : 1
+  // PATCH-173: пропорции и размер ячейки под окно
+  const aspectNum = ((activeSet && activeSet.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
+  const [gridRef, cellSize] = useFitCellSize(maxCols, maxRows, aspectNum)
 
   return (
     <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
@@ -400,6 +408,9 @@ export default function SetsManagerPage() {
             <button className="sets-btn" onClick={cancelChanges}
               disabled={saving}>↩ Отмена</button>
           )}
+          <span className="sets-counter">
+            Камер в наборе: {gridCameras.length} / {maxCols * maxRows}
+          </span>
         </div>
 
         <div className="sets-main">
@@ -460,9 +471,6 @@ export default function SetsManagerPage() {
           </div>
 
           <div className="sets-grid-wrap">
-            <div className="sets-grid-badge">
-              Камер: {gridCameras.length} / {maxCols * maxRows}
-            </div>
             <div
               ref={gridRef}
               className="sets-grid"
@@ -591,3 +599,261 @@ export default function SetsManagerPage() {
     </div>
   )
 }
+'''
+
+MONITOR_JSX = r'''// ============================================================
+//  GRYPHONE — страница мониторинга
+//  PATCH-173: полная перезапись — fit-to-window + aspect_ratio
+// ============================================================
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import Header from '../components/Header'
+import CameraCard from '../components/CameraCard'
+import CameraEmpty from '../components/CameraEmpty'
+import FullscreenCamera from '../components/FullscreenCamera'
+import ContextMenu from '../components/ContextMenu'
+import Toasts from '../components/Toasts'
+import useStreamStatus from '../hooks/useStreamStatus'
+import { getCurrentSetCameras } from '../api'
+
+// PATCH-173: расчёт размера ячейки; callback-ref работает при отложенном рендере
+function useFitCellSize(cols, rows, ratio, gap = 2, pad = 0) {
+  const [node, setNode] = useState(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    if (!node) return
+    const calc = () => {
+      const rect = node.getBoundingClientRect()
+      const availW = rect.width - pad - gap * (cols - 1)
+      const availH = rect.height - pad - gap * (rows - 1)
+      let w = Math.min(availW / cols, (availH / rows) * ratio)
+      w = Math.max(60, Math.floor(w))
+      setSize({ w, h: Math.floor(w / ratio) })
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [node, cols, rows, ratio, gap, pad])
+  return [setNode, size]
+}
+
+export default function MonitorPage() {
+  const [setData, setSetData] = useState(null)
+  const [cameras, setCameras] = useState([])
+  const [contextMenu, setContextMenu] = useState(null)
+  const [fullscreenCamera, setFullscreenCamera] = useState(null)
+
+  const stats = useStreamStatus()
+
+  useEffect(() => {
+    loadCurrentSet()
+  }, [])
+
+  useEffect(() => {
+    const handleSetChanged = () => {
+      loadCurrentSet()
+    }
+    window.addEventListener('set-changed', handleSetChanged)
+    return () => {
+      window.removeEventListener('set-changed', handleSetChanged)
+    }
+  }, [])
+
+  const loadCurrentSet = async () => {
+    try {
+      const data = await getCurrentSetCameras()
+      setSetData(data)
+      setCameras(data.cameras || [])
+    } catch (e) {
+      console.error('Ошибка загрузки камер набора:', e)
+    }
+  }
+
+  const handleContextMenu = useCallback((camera, x, y) => {
+    setContextMenu({ camera, x, y })
+  }, [])
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
+
+  const handleFullscreen = useCallback((camera) => {
+    setFullscreenCamera(camera)
+  }, [])
+
+  const handleCloseFullscreen = useCallback(() => {
+    setFullscreenCamera(null)
+  }, [])
+
+  // PATCH-173: пропорции и размер ячейки под окно
+  const aspectNum = ((setData && setData.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
+  const maxColsM = (setData && setData.max_columns > 0) ? setData.max_columns : 4
+  const maxRowsM = (setData && setData.max_rows > 0) ? setData.max_rows : 3
+  const [gridRef, cellSize] = useFitCellSize(maxColsM, maxRowsM, aspectNum)
+
+  const gridStyle = {
+    display: 'grid',
+    height: '100%',
+    gap: '2px',
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  }
+
+  if (setData && setData.max_columns > 0) {
+    gridStyle.gridTemplateColumns = cellSize.w
+      ? `repeat(${setData.max_columns}, ${cellSize.w}px)`
+      : `repeat(${setData.max_columns}, minmax(0, 1fr))`
+    if (cellSize.h) gridStyle.gridAutoRows = `${cellSize.h}px`
+  } else {
+    gridStyle.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))'
+  }
+
+  const hasFixedGrid = setData && setData.max_columns > 0 && setData.max_rows > 0
+  const totalCells = hasFixedGrid ? setData.max_columns * setData.max_rows : cameras.length
+  const emptyCount = Math.max(0, totalCells - cameras.length)
+
+  const hasSets = setData && setData.set_id !== ''
+
+  return (
+    <div className="page monitor-page">
+      <Header />
+
+      {hasSets && cameras.length > 0 && (
+        <div ref={gridRef} className="fullscreen-grid" style={gridStyle}>
+          {cameras.map((camera) => {
+            const hasSub = camera.sub_url && camera.sub_url.trim() !== '' &&
+                           camera.sub_url !== camera.main_url
+            const routeId = hasSub
+              ? `${camera.id}_sub`
+              : `${camera.id}_main`
+            const status = stats[routeId]?.state || 'подключение'
+            return (
+              <CameraCard
+                key={camera.id}
+                camera={camera}
+                status={status}
+                onContextMenu={handleContextMenu}
+                onFullscreen={handleFullscreen}
+              />
+            )
+          })}
+
+          {Array.from({ length: emptyCount }).map((_, i) => (
+            <CameraEmpty key={`empty-${i}`} index={i} />
+          ))}
+        </div>
+      )}
+
+      {!hasSets && (
+        <div style={{
+          textAlign: 'center', padding: '60px 20px',
+          background: '#1e293b', borderRadius: '8px',
+          border: '1px dashed #334155',
+          margin: '40px auto', maxWidth: '500px',
+        }}>
+          <div style={{ fontSize: '1.25rem', marginBottom: '12px' }}>
+            📹 Наборы не созданы
+          </div>
+          <div style={{ color: '#94a3b8', marginBottom: '20px' }}>
+            Для начала работы создайте набор камер и добавьте в него камеры.
+          </div>
+          <Link to="/settings" className="btn btn-primary">
+            Перейти в настройки
+          </Link>
+        </div>
+      )}
+
+      {hasSets && cameras.length === 0 && (
+        <div style={{
+          textAlign: 'center', padding: '60px 20px',
+          background: '#1e293b', borderRadius: '8px',
+          border: '1px dashed #334155',
+          margin: '40px auto', maxWidth: '500px',
+        }}>
+          <div style={{ fontSize: '1.25rem', marginBottom: '12px' }}>
+            📹 В наборе «{setData.set_name}» нет камер
+          </div>
+          <div style={{ color: '#94a3b8', marginBottom: '20px' }}>
+            Добавьте камеры в этот набор через настройки.
+          </div>
+          <Link to="/settings" className="btn btn-primary">
+            Перейти в настройки
+          </Link>
+        </div>
+      )}
+
+      {contextMenu && (
+        <ContextMenu
+          camera={contextMenu.camera}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleCloseContextMenu}
+          onUpdate={loadCurrentSet}
+          onFullscreen={handleFullscreen}
+        />
+      )}
+
+      {fullscreenCamera && (
+        <FullscreenCamera
+          camera={fullscreenCamera}
+          onClose={handleCloseFullscreen}
+        />
+      )}
+
+      <Toasts />
+    </div>
+  )
+}
+'''
+
+
+def main():
+    project_root = Path.cwd()
+    sets_jsx = project_root / "frontend" / "src" / "pages" / "SetsPage.jsx"
+    monitor_jsx = project_root / "frontend" / "src" / "pages" / "MonitorPage.jsx"
+
+    print("=" * 76)
+    print("173: Полная перезапись SetsPage + MonitorPage")
+    print("=" * 76)
+    print()
+
+    for f, content, name in [
+        (sets_jsx, SETS_JSX, "SetsPage.jsx"),
+        (monitor_jsx, MONITOR_JSX, "MonitorPage.jsx"),
+    ]:
+        b = f.with_suffix(f.suffix + ".bak-173")
+        b.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+        if content.count('{') != content.count('}') or \
+           content.count('(') != content.count(')'):
+            print(f"  [FAIL] {name}: скобки не сбалансированы — откат")
+            sys.exit(1)
+        f.write_text(content, encoding="utf-8")
+        print(f"  [OK] {name} перезаписан")
+
+    print()
+    print("=" * 76)
+    print("✅ Готово! Обе страницы в финальном состоянии:")
+    print("  • draft mode + save/cancel, drag&drop, контекстное меню")
+    print("  • aspect_ratio влияет на рендер (16:9 / 4:3)")
+    print("  • сетка вписана в окно без скролла (callback-ref + fallback 1fr)")
+    print()
+    print("  cd frontend && npm run build && Ctrl+Shift+R")
+    print("=" * 76)
+    print()
+    print("📦 ПОСЛЕ ПРОВЕРКИ — коммит:")
+    print()
+    print("cd /c/GRYPHONE_PROJ/v26")
+    print("git add -A")
+    print('git commit -m "feat: final SetsPage+MonitorPage rewrite (PATCH-166..173)" \\')
+    print('  -m "aspect_ratio (16:9/4:3) affects cell rendering on both screens" \\')
+    print('  -m "useFitCellSize: grid fits window without scroll, keeps gaps and margins" \\')
+    print('  -m "callback-ref + minmax(0,1fr) fallback fixes black screen" \\')
+    print('  -m "includes: draft mode, save/cancel, drag&drop onDragEnd, context menu"')
+    print("git push")
+    print("=" * 76)
+
+
+if __name__ == "__main__":
+    main()

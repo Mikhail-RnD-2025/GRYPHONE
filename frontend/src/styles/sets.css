@@ -283,3 +283,20 @@
   align-content: center;
   overflow: hidden;
 }
+
+/* PATCH-175: плавающий бейдж счётчика камер */
+.sets-grid-wrap { position: relative; }
+.sets-grid-badge {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 5;
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
