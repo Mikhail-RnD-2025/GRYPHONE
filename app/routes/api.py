@@ -225,10 +225,16 @@ def register(app):
         if set_id in camera_service._sets:
             return jsonify({"error": "Set ID already exists"}), 400
         sets_dict = {s: x.to_dict() for s, x in camera_service.all_sets().items()}
+        # PATCH-144: валидация числовых полей (400 вместо 500)
+        try:
+            max_rows = min(max(int(data.get("max_rows", 1)), 1), 32)  # PATCH-145
+            max_columns = min(max(int(data.get("max_columns", 1)), 1), 32)
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_rows/max_columns must be integers"}), 400
         sets_dict[set_id] = {
             "name": name,
-            "max_rows": int(data.get("max_rows", 4)),
-            "max_columns": int(data.get("max_columns", 6)),
+            "max_rows": max_rows,
+            "max_columns": max_columns,
             "aspect_ratio": data.get("aspect_ratio", "16:9"),
             "camera_ids": [],
         }
@@ -244,10 +250,14 @@ def register(app):
         data = request.get_json() or {}
         if "name" in data:
             target_set.name = data["name"]
-        if "max_rows" in data:
-            target_set.max_rows = int(data["max_rows"])
-        if "max_columns" in data:
-            target_set.max_columns = int(data["max_columns"])
+        # PATCH-144: валидация числовых полей (400 вместо 500)
+        try:
+            if "max_rows" in data:
+                target_set.max_rows = min(max(int(data["max_rows"]), 1), 32)
+            if "max_columns" in data:
+                target_set.max_columns = min(max(int(data["max_columns"]), 1), 32)
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_rows/max_columns must be integers"}), 400
         if "aspect_ratio" in data:
             target_set.aspect_ratio = data["aspect_ratio"]
         if "camera_ids" in data:

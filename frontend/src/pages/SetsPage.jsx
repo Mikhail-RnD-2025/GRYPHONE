@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Header from '../components/Header'
 import '../styles/sets.css'
 
 // PATCH-139: универсальная нормализация формата API
@@ -10,8 +11,8 @@ function normalizeSet(raw, key) {
   return {
     set_id: raw.set_id || raw.id || key,
     name: raw.name || raw.set_name || raw.title || raw.set_id || raw.id || key,
-    max_rows: parseInt(raw.max_rows) || 4,
-    max_columns: parseInt(raw.max_columns) || 6,
+    max_rows: parseInt(raw.max_rows) || 1,    // PATCH-145: дефолт 1x1
+    max_columns: parseInt(raw.max_columns) || 1,
     aspect_ratio: raw.aspect_ratio || '16:9',
     camera_ids: Array.isArray(cids) ? cids : [],
   }
@@ -73,46 +74,74 @@ export default function SetsManagerPage() {
   async function createSet() {
     const name = prompt('Имя нового набора:', 'Новый набор')
     if (!name) return
-    const res = await fetch('/api/sets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, max_rows: 4, max_columns: 6 })
-    })
-    if (res.ok) await loadData()
-    else alert('Ошибка: ' + ((await res.json()).error || res.status))
+    try {  // PATCH-144
+      const res = await fetch('/api/sets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, max_rows: 1, max_columns: 1 })  // PATCH-145
+      })
+      if (res.ok) await loadData()
+      else {
+        const err = await res.json().catch(() => ({}))
+        alert('Ошибка: ' + (err.error || res.status))
+      }
+    } catch (e) {
+      alert('Ошибка сети: ' + e.message)
+    }
   }
 
   async function deleteSet() {
     if (!activeSet) return
     if (!confirm(`Удалить набор "${activeSet.name}"?`)) return
-    await fetch(`/api/sets/${activeSet.set_id}`, { method: 'DELETE' })
-    await loadData()
+    try {  // PATCH-144
+      const res = await fetch(`/api/sets/${activeSet.set_id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert('Ошибка: ' + (err.error || res.status))
+        return
+      }
+      await loadData()
+    } catch (e) {
+      alert('Ошибка сети: ' + e.message)
+    }
   }
 
   async function updateSet(patch) {
     if (!activeSet) return
-    await fetch(`/api/sets/${activeSet.set_id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch)
-    })
-    await loadData()
+    try {  // PATCH-144
+      await fetch(`/api/sets/${activeSet.set_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+      })
+      await loadData()
+    } catch (e) {
+      console.error('[SetsPage] Ошибка обновления набора:', e)
+    }
   }
 
   async function removeCameraFromSet(cameraId) {
     if (!activeSet) return
-    await fetch(`/api/sets/${activeSet.set_id}/cameras/${cameraId}`, { method: 'DELETE' })
-    await loadData()
+    try {  // PATCH-144
+      await fetch(`/api/sets/${activeSet.set_id}/cameras/${cameraId}`, { method: 'DELETE' })
+      await loadData()
+    } catch (e) {
+      console.error('[SetsPage] Ошибка удаления камеры:', e)
+    }
   }
 
   async function updateCamerasOrder(newIds) {
     if (!activeSet) return
-    await fetch(`/api/sets/${activeSet.set_id}/cameras/order`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ camera_ids: newIds })
-    })
-    await loadData()
+    try {  // PATCH-144
+      await fetch(`/api/sets/${activeSet.set_id}/cameras/order`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ camera_ids: newIds })
+      })
+      await loadData()
+    } catch (e) {
+      console.error('[SetsPage] Ошибка сохранения порядка:', e)
+    }
   }
 
   // --- Drag & Drop ---
@@ -152,11 +181,14 @@ export default function SetsManagerPage() {
 
   const gridCameras = (activeSet ? activeSet.camera_ids : [])
     .map(id => cameras.find(c => c.id === id)).filter(Boolean)
-  const maxCols = activeSet ? activeSet.max_columns : 8
-  const maxRows = activeSet ? activeSet.max_rows : 7
+  const maxCols = activeSet ? activeSet.max_columns : 1  // PATCH-145
+  const maxRows = activeSet ? activeSet.max_rows : 1
 
   return (
-    <div className="sets-page">
+    <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
+      <Header />
+      <h1 className="page-title">📦 Управление наборами</h1>
+      <div className="sets-page">
       {/* ВЕРХНЯЯ ПАНЕЛЬ */}
       <div className="sets-topbar">
         <span className="sets-label">Набор:</span>
@@ -283,6 +315,7 @@ export default function SetsManagerPage() {
             Drop обратно в список — убирает камеру из набора.
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

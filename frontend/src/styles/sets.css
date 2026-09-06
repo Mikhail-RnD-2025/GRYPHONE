@@ -3,12 +3,13 @@
    Палитра: base.css / forms.css
    ============================================================ */
 
+/* PATCH-143: padding сверху убран (Header даёт отступ) */
 .sets-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  padding: 12px;
+  height: auto;
+  min-height: calc(100vh - 120px);
+  padding: 0 12px 12px;
   gap: 12px;
   color: #e0e3e8;
   overflow: hidden;
