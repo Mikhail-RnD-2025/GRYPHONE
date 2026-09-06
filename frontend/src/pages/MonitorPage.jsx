@@ -1,11 +1,8 @@
 // ============================================================
 //  GRYPHONE — страница мониторинга
-//  ------------------------------------------------------------
-//  ИСПРАВЛЕНО (v32):
-//  • Пустые ячейки в сетке рендеруются и помечаются отдельным
-//    цветом, чтобы сетка выглядела завершённой
+//  PATCH-173: полная перезапись — fit-to-window + aspect_ratio
 // ============================================================
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import CameraCard from '../components/CameraCard'
@@ -16,30 +13,27 @@ import Toasts from '../components/Toasts'
 import useStreamStatus from '../hooks/useStreamStatus'
 import { getCurrentSetCameras } from '../api'
 
-// PATCH-169 (monitor): расчёт размера ячейки, чтобы сетка влезала в контейнер
-function useFitCellSize(cols, rows, ratio) {
-  const ref = useRef(null)
+// PATCH-173: расчёт размера ячейки; callback-ref работает при отложенном рендере
+function useFitCellSize(cols, rows, ratio, gap = 2, pad = 0) {
+  const [node, setNode] = useState(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
+    if (!node) return
     const calc = () => {
-      const rect = el.getBoundingClientRect()
-      const gap = 4
-      const availW = rect.width - 16 - gap * (cols - 1)   // padding 8px*2
-      const availH = rect.height - 16 - gap * (rows - 1)
+      const rect = node.getBoundingClientRect()
+      const availW = rect.width - pad - gap * (cols - 1)
+      const availH = rect.height - pad - gap * (rows - 1)
       let w = Math.min(availW / cols, (availH / rows) * ratio)
       w = Math.max(60, Math.floor(w))
       setSize({ w, h: Math.floor(w / ratio) })
     }
     calc()
     const ro = new ResizeObserver(calc)
-    ro.observe(el)
+    ro.observe(node)
     return () => ro.disconnect()
-  }, [cols, rows, ratio])
-  return [ref, size]
+  }, [node, cols, rows, ratio, gap, pad])
+  return [setNode, size]
 }
-
 
 export default function MonitorPage() {
   const [setData, setSetData] = useState(null)
@@ -52,7 +46,7 @@ export default function MonitorPage() {
   useEffect(() => {
     loadCurrentSet()
   }, [])
-  // ИСПРАВЛЕНО (v43): слушаем событие смены набора из Header
+
   useEffect(() => {
     const handleSetChanged = () => {
       loadCurrentSet()
@@ -89,37 +83,35 @@ export default function MonitorPage() {
     setFullscreenCamera(null)
   }, [])
 
+  // PATCH-173: пропорции и размер ячейки под окно
+  const aspectNum = ((setData && setData.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
+  const maxColsM = (setData && setData.max_columns > 0) ? setData.max_columns : 4
+  const maxRowsM = (setData && setData.max_rows > 0) ? setData.max_rows : 3
+  const [gridRef, cellSize] = useFitCellSize(maxColsM, maxRowsM, aspectNum)
+
   const gridStyle = {
     display: 'grid',
-  height: "100%",
+    height: '100%',
     gap: '2px',
     flex: 1,
     minHeight: 0,
     width: '100%',
   }
 
-  // PATCH-169: фиксированный размер ячейки, вписанный в окно
   if (setData && setData.max_columns > 0) {
-    gridStyle.gridTemplateColumns = `repeat(${setData.max_columns}, ${cellSize.w}px)`
-    gridStyle.gridAutoRows = `${cellSize.h}px`
+    gridStyle.gridTemplateColumns = cellSize.w
+      ? `repeat(${setData.max_columns}, ${cellSize.w}px)`
+      : `repeat(${setData.max_columns}, minmax(0, 1fr))`
+    if (cellSize.h) gridStyle.gridAutoRows = `${cellSize.h}px`
   } else {
     gridStyle.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))'
   }
 
-
-  // ИСПРАВЛЕНО (v32): число пустых ячеек для заполнения всей сетки.
-  // PATCH-168: пропорции ячейки из формата набора
-  const cellAspect = ((setData && setData.aspect_ratio) || '16:9').replace(':', ' / ')
   const hasFixedGrid = setData && setData.max_columns > 0 && setData.max_rows > 0
   const totalCells = hasFixedGrid ? setData.max_columns * setData.max_rows : cameras.length
   const emptyCount = Math.max(0, totalCells - cameras.length)
 
   const hasSets = setData && setData.set_id !== ''
-  // PATCH-169: числовое соотношение и размер ячейки под окно
-  const aspectNum = ((setData && setData.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
-  const maxColsM = (setData && setData.max_columns > 0) ? setData.max_columns : 4
-  const maxRowsM = (setData && setData.max_rows > 0) ? setData.max_rows : 3
-  const [gridRef, cellSize] = useFitCellSize(maxColsM, maxRowsM, aspectNum)
 
   return (
     <div className="page monitor-page">
@@ -145,7 +137,6 @@ export default function MonitorPage() {
             )
           })}
 
-          {/* ИСПРАВЛЕНО (v32): пустые ячейки-заглушки */}
           {Array.from({ length: emptyCount }).map((_, i) => (
             <CameraEmpty key={`empty-${i}`} index={i} />
           ))}

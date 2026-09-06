@@ -28,6 +28,28 @@ function normalizeCameras(data) {
 
 const deepClone = (x) => JSON.parse(JSON.stringify(x))
 
+// PATCH-173: расчёт размера ячейки; callback-ref работает при отложенном рендере
+function useFitCellSize(cols, rows, ratio, gap = 4, pad = 16) {
+  const [node, setNode] = useState(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    if (!node) return
+    const calc = () => {
+      const rect = node.getBoundingClientRect()
+      const availW = rect.width - pad - gap * (cols - 1)
+      const availH = rect.height - pad - gap * (rows - 1)
+      let w = Math.min(availW / cols, (availH / rows) * ratio)
+      w = Math.max(60, Math.floor(w))
+      setSize({ w, h: Math.floor(w / ratio) })
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [node, cols, rows, ratio, gap, pad])
+  return [setNode, size]
+}
+
 export default function SetsManagerPage() {
   const [serverSets, setServerSets] = useState([])
   const [sets, setSets] = useState([])
@@ -39,12 +61,11 @@ export default function SetsManagerPage() {
   const [dirty, setDirty] = useState(false)
   const [draggedCamera, setDraggedCamera] = useState(null)
   const [dropTarget, setDropTarget] = useState(null)
-  const [ctxMenu, setCtxMenu] = useState(null)  // PATCH-160: контекстное меню
+  const [ctxMenu, setCtxMenu] = useState(null)
   const menuRef = useRef(null)
 
   useEffect(() => { loadData() }, [])
 
-  // PATCH-160: закрытие контекстного меню по клику вне
   useEffect(() => {
     function handleClickOutside(e) {
       if (ctxMenu && menuRef.current && !menuRef.current.contains(e.target)) {
@@ -189,15 +210,13 @@ export default function SetsManagerPage() {
     setDirty(false)
   }
 
-  // === Drag & Drop (PATCH-160: onDragEnd) ===
+  // --- Drag & Drop ---
 
   function handleDragStart(e, cam) {
     setDraggedCamera(cam)
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  // PATCH-160: сброс состояния ПОСЛЕ завершения drag
-  // (решает проблему "подвисания" ghost-image при drop)
   function handleDragEnd() {
     setDraggedCamera(null)
     setDropTarget(null)
@@ -223,7 +242,6 @@ export default function SetsManagerPage() {
       s.camera_ids = ids
       return s
     })
-    // setDraggedCamera(null) убран — сработает в onDragEnd (PATCH-160)
     setDropTarget(null)
   }
 
@@ -235,22 +253,15 @@ export default function SetsManagerPage() {
         return s
       })
     }
-    // setDraggedCamera(null) убран — сработает в onDragEnd (PATCH-160)
     setDropTarget(null)
   }
 
-  // === PATCH-160: Контекстное меню (ПКМ) ===
+  // --- Контекстное меню (ПКМ) ---
 
   function openCtxMenu(e, type, payload) {
     e.preventDefault()
     e.stopPropagation()
-    const rect = e.currentTarget.getBoundingClientRect()
-    setCtxMenu({
-      x: e.clientX,
-      y: e.clientY,
-      type,       // 'list-item' | 'grid-cell' | 'grid-empty' | 'grid-area' | 'list-area'
-      payload
-    })
+    setCtxMenu({ x: e.clientX, y: e.clientY, type, payload })
   }
 
   function closeCtxMenu() {
@@ -279,10 +290,7 @@ export default function SetsManagerPage() {
 
   function ctxClearSet() {
     if (!activeSet) return
-    if (activeSet.camera_ids.length === 0) {
-      closeCtxMenu()
-      return
-    }
+    if (activeSet.camera_ids.length === 0) { closeCtxMenu(); return }
     if (!confirm(`Очистить весь набор "${activeSet.name}" (${activeSet.camera_ids.length} камер)?`)) {
       closeCtxMenu()
       return
@@ -308,15 +316,15 @@ export default function SetsManagerPage() {
     .map(id => cameras.find(c => c.id === id)).filter(Boolean)
   const maxCols = activeSet ? activeSet.max_columns : 1
   const maxRows = activeSet ? activeSet.max_rows : 1
-  // PATCH-166: пропорции ячейки из формата набора
-  const cellAspect = ((activeSet && activeSet.aspect_ratio) || '16:9').replace(':', ' / ')
+  // PATCH-173: пропорции и размер ячейки под окно
+  const aspectNum = ((activeSet && activeSet.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
+  const [gridRef, cellSize] = useFitCellSize(maxCols, maxRows, aspectNum)
 
   return (
     <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
       <Header />
       <h1 className="page-title">📦 Управление наборами</h1>
       <div className="sets-page">
-        {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <div className="sets-topbar">
           <span className="sets-label">Набор:</span>
           <select
@@ -388,9 +396,7 @@ export default function SetsManagerPage() {
           </span>
         </div>
 
-        {/* ОСНОВНАЯ ОБЛАСТЬ */}
         <div className="sets-main">
-          {/* Слева: список камер */}
           <div
             className="sets-list-panel"
             onDragOver={handleDragOver}
@@ -447,12 +453,15 @@ export default function SetsManagerPage() {
             </div>
           </div>
 
-          {/* Справа: сетка */}
           <div className="sets-grid-wrap">
             <div
+              ref={gridRef}
               className="sets-grid"
               style={{
-                gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))`  // PATCH-166
+                gridTemplateColumns: cellSize.w
+                  ? `repeat(${maxCols}, ${cellSize.w}px)`
+                  : `repeat(${maxCols}, minmax(0, 1fr))`,
+                gridAutoRows: cellSize.h ? `${cellSize.h}px` : undefined
               }}
               onContextMenu={(e) => {
                 if (e.target.classList.contains('sets-grid')) {
@@ -467,7 +476,6 @@ export default function SetsManagerPage() {
                     key={idx}
                     className={'sets-cell' + (cam ? ' has-cam' : '') +
                       (dropTarget === idx ? ' drag-over' : '')}
-                    style={{ aspectRatio: cellAspect }}
                     onDragOver={(e) => { handleDragOver(e); setDropTarget(idx) }}
                     onDragLeave={() => setDropTarget(null)}
                     onDrop={(e) => handleDropOnGrid(e, idx)}
@@ -499,7 +507,6 @@ export default function SetsManagerPage() {
           </div>
         </div>
 
-        {/* PATCH-160: Контекстное меню */}
         {ctxMenu && (
           <div
             ref={menuRef}
@@ -541,9 +548,7 @@ export default function SetsManagerPage() {
                 >
                   🗑 Очистить весь набор ({activeSet ? activeSet.camera_ids.length : 0})
                 </button>
-                <button className="sets-ctx-item" onClick={closeCtxMenu}>
-                  ✕ Отмена
-                </button>
+                <button className="sets-ctx-item" onClick={closeCtxMenu}>✕ Отмена</button>
               </>
             )}
             {ctxMenu.type === 'list-area' && (
@@ -556,9 +561,7 @@ export default function SetsManagerPage() {
                 >
                   ＋ Добавить все видимые ({filteredCameras.length})
                 </button>
-                <button className="sets-ctx-item" onClick={closeCtxMenu}>
-                  ✕ Отмена
-                </button>
+                <button className="sets-ctx-item" onClick={closeCtxMenu}>✕ Отмена</button>
               </>
             )}
             {ctxMenu.type === 'grid-empty' && (
