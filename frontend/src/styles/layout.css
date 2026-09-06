@@ -104,3 +104,13 @@
   color: #666;
   border-radius: 8px;
 }
+
+/* PATCH-168: строки auto, скролл внутри */
+.fullscreen-grid { align-content: start; overflow: auto; }
+
+/* PATCH-169: сетка центрируется, без скролла */
+.fullscreen-grid {
+  justify-content: center;
+  align-content: center;
+  overflow: hidden;
+}

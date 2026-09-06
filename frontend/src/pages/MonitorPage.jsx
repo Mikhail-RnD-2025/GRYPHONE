@@ -16,6 +16,31 @@ import Toasts from '../components/Toasts'
 import useStreamStatus from '../hooks/useStreamStatus'
 import { getCurrentSetCameras } from '../api'
 
+// PATCH-169 (monitor): расчёт размера ячейки, чтобы сетка влезала в контейнер
+function useFitCellSize(cols, rows, ratio) {
+  const ref = useRef(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const calc = () => {
+      const rect = el.getBoundingClientRect()
+      const gap = 4
+      const availW = rect.width - 16 - gap * (cols - 1)   // padding 8px*2
+      const availH = rect.height - 16 - gap * (rows - 1)
+      let w = Math.min(availW / cols, (availH / rows) * ratio)
+      w = Math.max(60, Math.floor(w))
+      setSize({ w, h: Math.floor(w / ratio) })
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [cols, rows, ratio])
+  return [ref, size]
+}
+
+
 export default function MonitorPage() {
   const [setData, setSetData] = useState(null)
   const [cameras, setCameras] = useState([])
@@ -73,29 +98,35 @@ export default function MonitorPage() {
     width: '100%',
   }
 
+  // PATCH-169: фиксированный размер ячейки, вписанный в окно
   if (setData && setData.max_columns > 0) {
-    gridStyle.gridTemplateColumns = `repeat(${setData.max_columns}, 1fr)`
+    gridStyle.gridTemplateColumns = `repeat(${setData.max_columns}, ${cellSize.w}px)`
+    gridStyle.gridAutoRows = `${cellSize.h}px`
   } else {
     gridStyle.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))'
   }
 
-  if (setData && setData.max_rows > 0) {
-    gridStyle.gridTemplateRows = `repeat(${setData.max_rows}, 1fr)`
-  }
 
   // ИСПРАВЛЕНО (v32): число пустых ячеек для заполнения всей сетки.
+  // PATCH-168: пропорции ячейки из формата набора
+  const cellAspect = ((setData && setData.aspect_ratio) || '16:9').replace(':', ' / ')
   const hasFixedGrid = setData && setData.max_columns > 0 && setData.max_rows > 0
   const totalCells = hasFixedGrid ? setData.max_columns * setData.max_rows : cameras.length
   const emptyCount = Math.max(0, totalCells - cameras.length)
 
   const hasSets = setData && setData.set_id !== ''
+  // PATCH-169: числовое соотношение и размер ячейки под окно
+  const aspectNum = ((setData && setData.aspect_ratio) === '4:3') ? 4 / 3 : 16 / 9
+  const maxColsM = (setData && setData.max_columns > 0) ? setData.max_columns : 4
+  const maxRowsM = (setData && setData.max_rows > 0) ? setData.max_rows : 3
+  const [gridRef, cellSize] = useFitCellSize(maxColsM, maxRowsM, aspectNum)
 
   return (
     <div className="page monitor-page">
       <Header />
 
       {hasSets && cameras.length > 0 && (
-        <div className="fullscreen-grid" style={gridStyle}>
+        <div ref={gridRef} className="fullscreen-grid" style={gridStyle}>
           {cameras.map((camera) => {
             const hasSub = camera.sub_url && camera.sub_url.trim() !== '' &&
                            camera.sub_url !== camera.main_url

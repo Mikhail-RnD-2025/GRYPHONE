@@ -308,6 +308,8 @@ export default function SetsManagerPage() {
     .map(id => cameras.find(c => c.id === id)).filter(Boolean)
   const maxCols = activeSet ? activeSet.max_columns : 1
   const maxRows = activeSet ? activeSet.max_rows : 1
+  // PATCH-166: пропорции ячейки из формата набора
+  const cellAspect = ((activeSet && activeSet.aspect_ratio) || '16:9').replace(':', ' / ')
 
   return (
     <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
@@ -450,8 +452,7 @@ export default function SetsManagerPage() {
             <div
               className="sets-grid"
               style={{
-                gridTemplateColumns: `repeat(${maxCols}, 1fr)`,
-                gridTemplateRows: `repeat(${maxRows}, 1fr)`
+                gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))`  // PATCH-166
               }}
               onContextMenu={(e) => {
                 if (e.target.classList.contains('sets-grid')) {
@@ -466,6 +467,7 @@ export default function SetsManagerPage() {
                     key={idx}
                     className={'sets-cell' + (cam ? ' has-cam' : '') +
                       (dropTarget === idx ? ' drag-over' : '')}
+                    style={{ aspectRatio: cellAspect }}
                     onDragOver={(e) => { handleDragOver(e); setDropTarget(idx) }}
                     onDragLeave={() => setDropTarget(null)}
                     onDrop={(e) => handleDropOnGrid(e, idx)}

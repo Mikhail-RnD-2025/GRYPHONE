@@ -273,3 +273,13 @@
 }
 .sets-ctx-danger { color: #f87171; }
 .sets-ctx-danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.2); }
+
+/* PATCH-166: строки auto не растягиваются */
+.sets-grid { align-content: start; overflow: auto; }
+
+/* PATCH-169: сетка центрируется, без скролла */
+.sets-grid {
+  justify-content: center;
+  align-content: center;
+  overflow: hidden;
+}
