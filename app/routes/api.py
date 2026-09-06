@@ -231,11 +231,15 @@ def register(app):
             max_columns = min(max(int(data.get("max_columns", 1)), 1), 32)
         except (TypeError, ValueError):
             return jsonify({"error": "max_rows/max_columns must be integers"}), 400
+        # PATCH-146: валидация aspect_ratio (16:9 или 4:3)
+        aspect_ratio = data.get("aspect_ratio", "16:9")
+        if aspect_ratio not in ("16:9", "4:3"):
+            return jsonify({"error": "aspect_ratio must be '16:9' or '4:3'"}), 400
         sets_dict[set_id] = {
             "name": name,
             "max_rows": max_rows,
             "max_columns": max_columns,
-            "aspect_ratio": data.get("aspect_ratio", "16:9"),
+            "aspect_ratio": aspect_ratio,
             "camera_ids": [],
         }
         camera_service.save_sets({"sets": sets_dict})
@@ -258,7 +262,10 @@ def register(app):
                 target_set.max_columns = min(max(int(data["max_columns"]), 1), 32)
         except (TypeError, ValueError):
             return jsonify({"error": "max_rows/max_columns must be integers"}), 400
+        # PATCH-146: валидация aspect_ratio
         if "aspect_ratio" in data:
+            if data["aspect_ratio"] not in ("16:9", "4:3"):
+                return jsonify({"error": "aspect_ratio must be '16:9' or '4:3'"}), 400
             target_set.aspect_ratio = data["aspect_ratio"]
         if "camera_ids" in data:
             target_set.camera_ids = [str(c) for c in data["camera_ids"]]

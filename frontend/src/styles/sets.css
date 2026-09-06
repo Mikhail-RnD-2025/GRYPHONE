@@ -7,12 +7,12 @@
 .sets-page {
   display: flex;
   flex-direction: column;
-  height: auto;
-  min-height: calc(100vh - 120px);
+  height: calc(100vh - 60px);
+  min-height: 0;
   padding: 0 12px 12px;
   gap: 12px;
   color: #e0e3e8;
-  overflow: hidden;
+  overflow: visible;  /* PATCH-153: drag-образ не обрезается */
 }
 
 /* --- Верхняя панель --------------------------------------- */
@@ -86,6 +86,7 @@
   gap: 12px;
   flex: 1;
   min-height: 0;
+  overflow: visible;  /* PATCH-152: drag пересекает границы */
 }
 
 /* --- Левая панель: список камер ---------------------------- */
@@ -98,6 +99,8 @@
   background: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(51, 65, 85, 0.4);
   border-radius: 8px;
+  min-height: 0;
+  overflow: visible;  /* PATCH-152: drag пересекает границы */
 }
 
 .sets-search { margin-bottom: 8px; }
@@ -147,8 +150,10 @@
 .sets-grid-wrap {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: visible;  /* PATCH-152: drag пересекает границы */
 }
 
 .sets-grid {
@@ -160,8 +165,11 @@
   background: rgba(15, 23, 42, 0.4);
   border: 1px solid rgba(51, 65, 85, 0.4);
   border-radius: 8px;
-  overflow: auto;
+  overflow: auto;  /* PATCH-152: скролл при необходимости */
 }
+
+/* PATCH-149: ячейки-слоты */
+.sets-cell { min-width: 0; min-height: 0; overflow: hidden; }
 
 .sets-cell {
   border: 1px solid rgba(51, 65, 85, 0.35);
@@ -173,6 +181,10 @@
   padding: 4px;
   font-size: 0.75rem;
   transition: border-color 0.15s ease, background 0.15s ease;
+  /* PATCH-149: ячейка-слот как в главной сетке */
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 .sets-cell.has-cam { background: rgba(30, 41, 59, 0.7); }
 .sets-cell.drag-over {
@@ -199,11 +211,65 @@
 .sets-cell-state { font-size: 0.65rem; color: #94a3b8; }
 .sets-cell-num { color: rgba(148, 163, 184, 0.35); font-size: 0.7rem; }
 
-.sets-hint {
+.sets-loading { padding: 20px; color: #94a3b8; }
+
+/* PATCH-146: компактный селект формата */
+.sets-select-sm { min-width: 76px; }
+
+/* PATCH-159: кнопка сохранения и индикатор изменений */
+.sets-btn-save { color: #4ade80; border-color: rgba(74, 222, 128, 0.4); }
+.sets-btn-save:hover { border-color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+.sets-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.sets-dirty {
   font-size: 0.75rem;
-  color: #64748b;
-  padding: 6px 0 0;
-  text-align: center;
+  color: #fbbf24;
+  animation: sets-pulse 1.2s ease-in-out infinite;
+}
+@keyframes sets-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.sets-loading { padding: 20px; color: #94a3b8; }
+/* PATCH-160: контекстное меню */
+.sets-ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  border-radius: 6px;
+  padding: 6px 0;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  font-size: 0.85rem;
+  color: #e0e3e8;
+}
+.sets-ctx-title {
+  padding: 6px 14px;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  margin-bottom: 4px;
+}
+.sets-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: #e0e3e8;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+.sets-ctx-item:hover { background: rgba(37, 99, 235, 0.2); }
+.sets-ctx-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent !important;
+}
+.sets-ctx-danger { color: #f87171; }
+.sets-ctx-danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.2); }
