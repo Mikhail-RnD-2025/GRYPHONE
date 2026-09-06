@@ -60,6 +60,18 @@ class Database:
             # Применяем всю схему одним скриптом (поддерживает несколько
             # CREATE TABLE, PRAGMA, индексы и комментарии).
             conn.executescript(schema_sql)
+
+            # PATCH-161: миграция существующих БД — добавляем aspect_ratio
+            # (идемпотентно: CREATE TABLE IF NOT EXISTS не меняет старые БД)
+            mig_cursor = conn.cursor()
+            mig_cursor.execute("PRAGMA table_info(sets)")
+            _cols = [r[1] for r in mig_cursor.fetchall()]
+            if "aspect_ratio" not in _cols:
+                mig_cursor.execute(
+                    "ALTER TABLE sets ADD COLUMN aspect_ratio TEXT DEFAULT '16:9'"
+                )
+                conn.commit()
+                print("[PATCH-161] Миграция: sets + aspect_ratio")
             conn.commit()
         finally:
             conn.close()
@@ -255,7 +267,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT id, name, grid_columns, grid_rows, is_default FROM sets")
+        cursor.execute("SELECT id, name, grid_columns, grid_rows, is_default, aspect_ratio FROM sets")  # PATCH-161
         sets_rows = cursor.fetchall()
 
         sets_data = {}
@@ -267,6 +279,7 @@ class Database:
                 'name': row[1],
                 'grid_columns': row[2],
                 'grid_rows': row[3],
+                'aspect_ratio': (row[5] or '16:9') if len(row) > 5 else '16:9',  # PATCH-161
                 'cameras': []
             }
             if row[4]:
@@ -325,14 +338,15 @@ class Database:
             is_default = 1 if set_id == default_set else 0
             cursor.execute("""
                 INSERT OR REPLACE INTO sets
-                (id, name, grid_columns, grid_rows, is_default)
-                VALUES (?, ?, ?, ?, ?)
+                (id, name, grid_columns, grid_rows, is_default, aspect_ratio)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 set_id,
                 set_info.get('name', set_id),
                 set_info.get('max_columns', set_info.get('grid_columns', 4)),
                 set_info.get('max_rows', set_info.get('grid_rows', 3)),
-                is_default
+                is_default,
+                set_info.get('aspect_ratio', '16:9')  # PATCH-161
             ))
             camera_ids = set_info.get('camera_ids', set_info.get('cameras', []))
             for cam_id in camera_ids:

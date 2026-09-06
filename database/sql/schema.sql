@@ -78,7 +78,9 @@ CREATE TABLE IF NOT EXISTS sets (
     -- Количество строк в сетке просмотра
     grid_rows INTEGER DEFAULT 3,
     -- Является ли набором по умолчанию при старте (0=нет, 1=да)
-    is_default INTEGER DEFAULT 0
+    is_default INTEGER DEFAULT 0,
+    -- PATCH-161: пропорции ячеек сетки ('16:9' или '4:3')
+    aspect_ratio TEXT DEFAULT '16:9'
 );
 
 CREATE INDEX IF NOT EXISTS idx_sets_is_default ON sets(is_default);
