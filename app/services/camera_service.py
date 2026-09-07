@@ -24,7 +24,6 @@ class CameraService:
     def __init__(self):
         self._cameras: Dict[str, Camera] = {}
         self._sets: Dict[str, Set] = {}
-        self._default_set: str = ""
         self._current_set: str = ""
         self._load()
 
@@ -51,12 +50,8 @@ class CameraService:
             set_id: Set.from_raw(set_id, raw)
             for set_id, raw in sets_dict.items()
         }
-        self._default_set = (
-            raw_sets.get("default_set", "") if isinstance(raw_sets, dict) else ""
-        )
-        if not self._default_set or self._default_set not in self._sets:
-            self._default_set = next(iter(self._sets), "")
-        self._current_set = self._default_set
+        # PATCH-183: сервер НЕ хранит выбор — клиент синхронизирует сам
+        self._current_set = ""
 
     def reload(self) -> None:
         self._load()
@@ -129,9 +124,6 @@ class CameraService:
     def get_set(self, set_id: str) -> Optional[Set]:
         return self._sets.get(set_id)
 
-    def default_set_id(self) -> str:
-        return self._default_set
-
     def current_set_id(self) -> str:
         return self._current_set
 
@@ -159,9 +151,8 @@ class CameraService:
             set_id: Set.from_raw(set_id, set_data)
             for set_id, set_data in sets_dict.items()
         }
-        self._default_set = raw.get("default_set", "") or self._default_set
         if self._current_set not in self._sets:
-            self._current_set = self._default_set
+            self._current_set = ""
         db.save_sets_data( raw)
         return True
 

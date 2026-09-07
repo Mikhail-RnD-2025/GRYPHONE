@@ -1,18 +1,11 @@
-// ============================================================
-// GRYPHONE-VISION — application header (v118)
-// ------------------------------------------------------------
-// Шапка-оверлей с автоскрытием на ВСЕХ страницах.
-// Логотип "GRYPHONE - VISION" (синий) + полноэкранный режим по клику.
-// ============================================================
-
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getSets, switchSet } from '../api'
 import HamburgerMenu from './HamburgerMenu'
 
 export default function Header() {
   const [sets, setSets] = useState({})
-  const [currentSet, setCurrentSet] = useState('')
+  const [currentSet, setCurrentSet] = useState('')  // PATCH-178: пусто при старте
   const [clock, setClock] = useState('')
   const [visible, setVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -21,91 +14,63 @@ export default function Header() {
   const location = useLocation()
   const isMonitorPage = location.pathname === '/'
 
+  // PATCH-178: состояние кастомного dropdown
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [searchFilter, setSearchFilter] = useState('')
+  const dropdownRef = useRef(null)
+  const searchInputRef = useRef(null)
+
   useEffect(() => { loadSets() }, [])
 
   useEffect(() => {
-    const updateClock = () => {
+    const id = setInterval(() => {
       const now = new Date()
-      setClock(now.toLocaleTimeString('ru-RU', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-      }))
-    }
-    updateClock()
-    const interval = setInterval(updateClock, 1000)
-    return () => clearInterval(interval)
+      setClock(
+        now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      )
+    }, 1000)
+    return () => clearInterval(id)
   }, [])
 
-  // Отслеживаем изменения полноэкранного режима
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
-
-  // Переключение полноэкранного режима по клику на логотип
-  const toggleFullscreen = useCallback(async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen()
-      } else {
-        await document.exitFullscreen()
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false)
+        setSearchFilter('')
       }
-    } catch (err) {
-      console.error('Fullscreen error:', err)
     }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Автоскрытие на ВСЕХ страницах
   useEffect(() => {
-    setVisible(false)
-  }, [location.pathname])
-
-  const cancelHide = () => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = null
+    if (dropdownOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50)
     }
-  }
-
-  const scheduleHide = () => {
-    cancelHide()
-    hideTimerRef.current = setTimeout(() => {
-      if (!isHoveredRef.current) setVisible(false)
-    }, 2000)
-  }
-
-  const handleMouseEnter = () => {
-    isHoveredRef.current = true
-    cancelHide()
-    setVisible(true)
-  }
-
-  const handleMouseLeave = () => {
-    isHoveredRef.current = false
-    scheduleHide()
-  }
-
-  useEffect(() => {
-    return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-    }
-  }, [])
+  }, [dropdownOpen])
 
   const loadSets = async () => {
     try {
       const data = await getSets()
       setSets(data.sets || {})
-      setCurrentSet(data.default_set || '')
+      // PATCH-182: последний выбор хранится ЛОКАЛЬНО в браузере
+      const stored = localStorage.getItem('gryphone_current_set') || ''
+      if (stored && data.sets && data.sets[stored]) {
+        setCurrentSet(stored)
+        switchSet(stored).catch(() => {})  // синхронизируем сервер
+      } else {
+        setCurrentSet('')
+      }
     } catch (e) {
       console.error('Failed to load sets:', e)
     }
   }
 
-  const handleSetChange = async (e) => {
-    const setId = e.target.value
+  const handleSetChange = async (setId) => {
     setCurrentSet(setId)
+    localStorage.setItem('gryphone_current_set', setId)  // PATCH-182
+    setDropdownOpen(false)
+    setSearchFilter('')
     try {
       await switchSet(setId)
       window.dispatchEvent(new CustomEvent('set-changed', { detail: { setId } }))
@@ -113,6 +78,51 @@ export default function Header() {
       console.error('Failed to switch set:', e)
     }
   }
+
+  const handleMouseEnter = () => {
+    isHoveredRef.current = true
+    setVisible(true)
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+  }
+
+  const handleMouseLeave = () => {
+    isHoveredRef.current = false
+    hideTimerRef.current = setTimeout(() => {
+      if (!isHoveredRef.current) setVisible(false)
+    }, 800)
+  }
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen().catch(() => {})
+      setIsFullscreen(false)
+    }
+  }
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFsChange)
+    return () => document.removeEventListener('fullscreenchange', handleFsChange)
+  }, [])
+
+  const setEntries = Object.entries(sets)
+  const filteredSets = setEntries.filter(([id, s]) => {
+    if (!searchFilter) return true
+    const q = searchFilter.toLowerCase()
+    return (
+      id.toLowerCase().includes(q) ||
+      (s.name || '').toLowerCase().includes(q)
+    )
+  })
+  const currentSetName = currentSet && sets[currentSet]
+    ? sets[currentSet].name
+    : '— выберите набор —'
 
   return (
     <>
@@ -146,17 +156,47 @@ export default function Header() {
         </div>
 
         <div className="header-right">
-          {isMonitorPage && Object.keys(sets).length > 0 && (
-            <select
-              className="set-selector"
-              value={currentSet}
-              onChange={handleSetChange}
-              title="Выбор набора"
-            >
-              {Object.entries(sets).map(([id, set]) => (
-                <option key={id} value={id}>{set.name}</option>
-              ))}
-            </select>
+          {isMonitorPage && setEntries.length > 0 && (
+            <div className="set-dropdown" ref={dropdownRef}>
+              <button
+                className={`set-selector ${!currentSet ? 'set-selector-empty' : ''}`}
+                onClick={() => setDropdownOpen(o => !o)}
+                type="button"
+              >
+                <span className="set-selector-label">{currentSetName}</span>
+                <span className="set-selector-arrow">{dropdownOpen ? '▲' : '▼'}</span>
+              </button>
+              {dropdownOpen && (
+                <div className="set-dropdown-menu">
+                  <div className="set-dropdown-search">
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      className="set-dropdown-input"
+                      placeholder="🔍 Поиск набора..."
+                      value={searchFilter}
+                      onChange={(e) => setSearchFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="set-dropdown-list">
+                    {filteredSets.length === 0 ? (
+                      <div className="set-dropdown-empty">Ничего не найдено</div>
+                    ) : (
+                      filteredSets.map(([id, s]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`set-dropdown-item ${id === currentSet ? 'active' : ''}`}
+                          onClick={() => handleSetChange(id)}
+                        >
+                          <span className="set-dropdown-item-name">{s.name}</span>  {/* PATCH-179: только имя */}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <HamburgerMenu />
         </div>

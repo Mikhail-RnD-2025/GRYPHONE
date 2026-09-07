@@ -78,12 +78,10 @@ CREATE TABLE IF NOT EXISTS sets (
     -- Количество строк в сетке просмотра
     grid_rows INTEGER DEFAULT 3,
     -- Является ли набором по умолчанию при старте (0=нет, 1=да)
-    is_default INTEGER DEFAULT 0,
     -- PATCH-161: пропорции ячеек сетки ('16:9' или '4:3')
     aspect_ratio TEXT DEFAULT '16:9'
 );
 
-CREATE INDEX IF NOT EXISTS idx_sets_is_default ON sets(is_default);
 
 -- ----------------------------------------------------------------------------
 -- Таблица: set_cameras
@@ -156,8 +154,8 @@ CREATE INDEX IF NOT EXISTS idx_events_acknowledged ON events(acknowledged);
 -- Можно раскомментировать, если нужны стартовые значения:
 
 -- Установить набор по умолчанию
--- INSERT OR IGNORE INTO sets (id, name, grid_columns, grid_rows, is_default)
--- VALUES ('default', 'По умолчанию', 4, 3, 1);
+-- INSERT OR IGNORE INTO sets (id, name, grid_columns, grid_rows, aspect_ratio)
+-- VALUES ('default', 'По умолчанию', 4, 3, '16:9');
 
 -- ----------------------------------------------------------------------------
 -- Конец схемы

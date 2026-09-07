@@ -120,20 +120,18 @@ class Database:
             try:
                 with open(sets_file, "r", encoding="utf-8") as f:
                     sets_data = json.load(f)
-                default_set = sets_data.get("default_set", "")
                 sets_dict = sets_data.get("sets", {})
                 for set_id, set_info in sets_dict.items():
-                    is_default = 1 if set_id == default_set else 0
                     cursor.execute("""
                         INSERT OR REPLACE INTO sets
-                        (id, name, grid_columns, grid_rows, is_default)
+                        (id, name, grid_columns, grid_rows, aspect_ratio)
                         VALUES (?, ?, ?, ?, ?)
                     """, (
                         set_id,
                         set_info.get("name", set_id),
                         set_info.get("max_columns", set_info.get("grid_columns", 4)),
                         set_info.get("max_rows", set_info.get("grid_rows", 3)),
-                        is_default
+                        set_info.get("aspect_ratio", "16:9")
                     ))
                     # PATCH-77: привязываем только существующие камеры
                     camera_ids = set_info.get("cameras", [])
@@ -159,12 +157,9 @@ class Database:
         if bindings_count == 0:
             print(" ⚠️ Привязок камер к наборам нет — создаю автоматически")
             # Находим набор по умолчанию
-            cursor.execute("SELECT id FROM sets WHERE is_default = 1 LIMIT 1")
+            # PATCH-182: набора по умолчанию нет — берём первый
+            cursor.execute("SELECT id FROM sets LIMIT 1")
             default_set_row = cursor.fetchone()
-            if not default_set_row:
-                # Если нет набора по умолчанию, берём первый
-                cursor.execute("SELECT id FROM sets LIMIT 1")
-                default_set_row = cursor.fetchone()
             if default_set_row:
                 default_set_id = default_set_row[0]
                 # Получаем все включённые камеры
@@ -267,11 +262,10 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT id, name, grid_columns, grid_rows, is_default, aspect_ratio FROM sets")  # PATCH-161
+        cursor.execute("SELECT id, name, grid_columns, grid_rows, aspect_ratio FROM sets")  # PATCH-182
         sets_rows = cursor.fetchall()
 
         sets_data = {}
-        default_set = None
 
         for row in sets_rows:
             set_id = row[0]
@@ -279,11 +273,9 @@ class Database:
                 'name': row[1],
                 'grid_columns': row[2],
                 'grid_rows': row[3],
-                'aspect_ratio': (row[5] or '16:9') if len(row) > 5 else '16:9',  # PATCH-161
+                'aspect_ratio': (row[4] or '16:9') if len(row) > 4 else '16:9',  # PATCH-182
                 'cameras': []
             }
-            if row[4]:
-                default_set = set_id
 
         for set_id in sets_data:
             cursor.execute("""
@@ -295,7 +287,6 @@ class Database:
         conn.close()
 
         return {
-            'default_set': default_set or '',
             'sets': sets_data
         }
 
@@ -328,25 +319,22 @@ class Database:
         """Сохранить наборы в таблицы sets и set_cameras (полная замена)."""
         conn = self.get_connection()
         cursor = conn.cursor()
-        default_set = sets_data.get('default_set', '')
         sets_dict = sets_data.get('sets', {})
         cursor.execute("DELETE FROM set_cameras")
         cursor.execute("DELETE FROM sets")
         for set_id, set_info in sets_dict.items():
             if not isinstance(set_info, dict):
                 continue
-            is_default = 1 if set_id == default_set else 0
             cursor.execute("""
                 INSERT OR REPLACE INTO sets
-                (id, name, grid_columns, grid_rows, is_default, aspect_ratio)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (id, name, grid_columns, grid_rows, aspect_ratio)
+                VALUES (?, ?, ?, ?, ?)
             """, (
                 set_id,
                 set_info.get('name', set_id),
                 set_info.get('max_columns', set_info.get('grid_columns', 4)),
                 set_info.get('max_rows', set_info.get('grid_rows', 3)),
-                is_default,
-                set_info.get('aspect_ratio', '16:9')  # PATCH-161
+                set_info.get('aspect_ratio', '16:9')
             ))
             camera_ids = set_info.get('camera_ids', set_info.get('cameras', []))
             for cam_id in camera_ids:

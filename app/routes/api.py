@@ -138,7 +138,7 @@ def register(app):
     def get_sets():
         sets = camera_service.all_sets()
         return jsonify({
-            "default_set": camera_service.default_set_id(),
+            "current_set": camera_service.current_set_id(),  # PATCH-182
             "sets": {s_id: s.to_dict() for s_id, s in sets.items()},
         })
 

@@ -143,7 +143,7 @@ export default function MonitorPage() {
         </div>
       )}
 
-      {!hasSets && (
+      {!setData && (
         <div style={{
           textAlign: 'center', padding: '60px 20px',
           background: '#1e293b', borderRadius: '8px',
@@ -159,6 +159,22 @@ export default function MonitorPage() {
           <Link to="/settings" className="btn btn-primary">
             Перейти в настройки
           </Link>
+        </div>
+      )}
+
+      {setData && !hasSets && (
+        <div style={{
+          textAlign: 'center', padding: '60px 20px',
+          background: '#1e293b', borderRadius: '8px',
+          border: '1px dashed #334155',
+          margin: '40px auto', maxWidth: '500px',
+        }}>
+          <div style={{ fontSize: '1.25rem', marginBottom: '12px' }}>
+            📹 Выберите набор
+          </div>
+          <div style={{ color: '#94a3b8', marginBottom: '20px' }}>
+            Наведите курсор на верх страницы и выберите набор в шапке.
+          </div>
         </div>
       )}
 
