@@ -63,10 +63,31 @@ class Camera:
             d['pass'] = d.pop('pass_')
         return d
 
+
+    @staticmethod
+    def _split_legacy_urls(raw: Dict[str, Any]) -> Dict[str, Any]:
+        """PATCH-185: если main_url/sub_url пришли полными rtsp:// — разобрать на части."""
+        from urllib.parse import urlparse
+        out = dict(raw)
+        for key in ("main_url", "sub_url"):
+            val = out.get(key) or ""
+            if isinstance(val, str) and val.strip().lower().startswith("rtsp://"):
+                p = urlparse(val.strip())
+                out["login"] = out.get("login") or (p.username or "")
+                out["pass"] = out.get("pass") or (p.password or "")
+                out["ipaddress"] = out.get("ipaddress") or (p.hostname or "")
+                out["port"] = out.get("port") or (str(p.port) if p.port else "554")
+                path = p.path.lstrip("/")
+                if p.query:
+                    path += "?" + p.query
+                out[key] = path
+        return out
+
     @classmethod
     def from_raw(cls, raw: Dict[str, Any]) -> Optional["Camera"]:
         if not isinstance(raw, dict):
             return None
+        raw = cls._split_legacy_urls(raw)  # PATCH-185
         cam_id = raw.get("id")
         ipaddress = raw.get("ipaddress")
         main_url = raw.get("main_url")

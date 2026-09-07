@@ -96,13 +96,18 @@ class Database:
                     for cam in cameras_data:
                         cursor.execute("""
                             INSERT OR REPLACE INTO cameras
-                            (id, name, main_url, sub_url, enabled, comment, audio, location)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            (id, name, login, pass, ipaddress, port, main_url, sub_url, sub2_url, enabled, comment, audio, location)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             cam.get("id", ""),
                             cam.get("name", ""),
-                            cam.get("main_url", ""),
-                            cam.get("sub_url", ""),
+                            cam.get("login", ""),
+                            cam.get("pass", ""),
+                            cam.get("ipaddress", ""),
+                            cam.get("port", "554"),
+                            str(cam.get("main_url", "")).lstrip("/"),  # PATCH-187
+                            str(cam.get("sub_url", "")).lstrip("/"),
+                            str(cam.get("sub2_url", "")).lstrip("/"),
                             1 if cam.get("enabled", True) else 0,
                             cam.get("comment", ""),
                             1 if cam.get("audio", True) else 0,
@@ -237,7 +242,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, name, main_url, sub_url, enabled, comment, audio, location
+            SELECT id, name, login, pass, ipaddress, port, main_url, sub_url, sub2_url, enabled, comment, audio, location
             FROM cameras
         """)
         rows = cursor.fetchall()
@@ -248,12 +253,17 @@ class Database:
             cameras.append({
                 'id': row[0],
                 'name': row[1],
-                'main_url': row[2],
-                'sub_url': row[3],
-                'enabled': bool(row[4]),
-                'comment': row[5],
-                'audio': bool(row[6]),
-                'location': row[7]
+                'login': row[2],
+                'pass': row[3],
+                'ipaddress': row[4],
+                'port': row[5],
+                'main_url': row[6],
+                'sub_url': row[7],
+                'sub2_url': row[8],
+                'enabled': bool(row[9]),
+                'comment': row[10],
+                'audio': bool(row[11]),
+                'location': row[12]
             })
         return cameras
 
@@ -300,13 +310,18 @@ class Database:
         for cam in cameras:
             cursor.execute("""
                 INSERT OR REPLACE INTO cameras
-                (id, name, main_url, sub_url, enabled, comment, audio, location)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, name, login, pass, ipaddress, port, main_url, sub_url, sub2_url, enabled, comment, audio, location)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 cam.get('id', ''),
                 cam.get('name', ''),
-                cam.get('main_url', ''),
-                cam.get('sub_url', ''),
+                cam.get('login', ''),
+                cam.get('pass', ''),
+                cam.get('ipaddress', ''),
+                cam.get('port', '554'),
+                str(cam.get('main_url', '')).lstrip('/'),  # PATCH-187
+                str(cam.get('sub_url', '')).lstrip('/'),
+                str(cam.get('sub2_url', '')).lstrip('/'),
                 1 if cam.get('enabled', True) else 0,
                 cam.get('comment', ''),
                 1 if cam.get('audio', True) else 0,
