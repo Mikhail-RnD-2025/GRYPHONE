@@ -16,6 +16,7 @@ from app.services.camera_service import camera_service
 from app.services.camera_import_service import camera_import_service  # PATCH-191
 from app.services.stream_manager import stream_manager
 from app.services.config_sync import config_sync
+from pathlib import Path  # PATCH-195
 
 logger = logging.getLogger(__name__)
 

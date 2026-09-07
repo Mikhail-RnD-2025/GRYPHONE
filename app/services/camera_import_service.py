@@ -73,6 +73,7 @@ COLUMN_MAPPING = {
     ],
     'sub2_url': [
         'sub2_url', 'sub2 url', 'sub2', 'суб2', 'sub2_path', 'sub2 path',
+        'путь sub2', 'путь sub2 потока',  # PATCH-196: заголовок экспорта
     ],
     'enabled': [
         'enabled', 'включена', 'активна', 'статус', 'status', 'активно',
@@ -333,9 +334,7 @@ class CameraImportService:
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.title = "Камеры"
-                headers = ['ID', 'Имя', 'Login', 'Пароль', 'IP-адрес', 'Порт',
-                          'Путь основного потока', 'Путь субпотока', 'Путь sub2',
-                          'Включена', 'Комментарий', 'Аудио', 'Местоположение']
+                headers = ['id', 'name', 'login', 'pass', 'ipaddress', 'port', 'main_url', 'sub_url', 'sub2_url', 'enabled', 'comment', 'audio', 'location']  # PATCH-197: имена колонок БД
                 ws.append(headers)
                 wb.save(file_path)
                 wb.close()
@@ -345,16 +344,14 @@ class CameraImportService:
             ws = wb.active
             ws.title = "Камеры"
 
-            headers = ['ID', 'Имя', 'Login', 'Пароль', 'IP-адрес', 'Порт',
-                      'Путь основного потока', 'Путь субпотока', 'Путь sub2',
-                      'Включена', 'Комментарий', 'Аудио', 'Местоположение']
+            headers = ['id', 'name', 'login', 'pass', 'ipaddress', 'port', 'main_url', 'sub_url', 'sub2_url', 'enabled', 'comment', 'audio', 'location']  # PATCH-197: имена колонок БД
             ws.append(headers)
 
             for cam in cameras:
                 ws.append([
                     cam.id, cam.name, cam.login, cam.pass_, cam.ipaddress, cam.port,
                     cam.main_url, cam.sub_url, cam.sub2_url,
-                    cam.enabled, cam.comment, cam.audio, cam.location
+                    bool(cam.enabled), cam.comment, bool(cam.audio), cam.location  # PATCH-197: TRUE/FALSE
                 ])
 
             wb.save(file_path)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'  // PATCH-194
 import { getCameras, saveCameras } from '../api'
 
 export default function CamerasEditor() {
@@ -6,9 +6,27 @@ export default function CamerasEditor() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState(null)  // PATCH-189: null вместо editingId
+  const [exportOpen, setExportOpen] = useState(false)  // PATCH-194
+  const [importOpen, setImportOpen] = useState(false)  // PATCH-194
+  const exportRef = useRef(null)  // PATCH-194
+  const importRef = useRef(null)  // PATCH-194
 
   useEffect(() => {
     loadCameras()
+  }, [])
+
+  // PATCH-194: закрытие dropdown по клику вне
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (exportRef.current && !exportRef.current.contains(e.target)) {
+        setExportOpen(false)
+      }
+      if (importRef.current && !importRef.current.contains(e.target)) {
+        setImportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const loadCameras = async () => {
@@ -72,55 +90,80 @@ export default function CamerasEditor() {
     }
   }
 
-  const handleExport = () => {
-    const json = JSON.stringify(cameras, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'cameras.json'
-    a.click()
-    URL.revokeObjectURL(url)
-    if (window.addToast) {
-      window.addToast('✅ Камеры экспортированы', 'success')
+  // PATCH-194: экспорт через API (excel или json)
+  const handleExport = async (format) => {
+    setExportOpen(false)
+    try {
+      if (format === 'excel') {
+        const res = await fetch('/api/cameras/export-excel')
+        if (!res.ok) throw new Error('Ошибка экспорта Excel')
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'cameras.xlsx'
+        a.click()
+        URL.revokeObjectURL(url)
+      } else {
+        const res = await fetch('/api/cameras/export-json')
+        if (!res.ok) throw new Error('Ошибка экспорта JSON')
+        const data = await res.json()
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'cameras.json'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+      if (window.addToast) {
+        window.addToast('✅ Экспорт завершён', 'success')
+      }
+    } catch (e) {
+      console.error('Ошибка экспорта:', e)
+      if (window.addToast) {
+        window.addToast('❌ Ошибка экспорта: ' + e.message, 'error')
+      }
     }
   }
 
-  const handleImport = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-
+  // PATCH-194: импорт через API (excel или json), мерж-логика на сервере
+  const handleImportFile = async (file, format) => {
+    setImportOpen(false)
     try {
-      const text = await file.text()
-      const imported = JSON.parse(text)
-
-      if (!Array.isArray(imported)) {
-        throw new Error('Файл должен содержать массив камер')
+      let res
+      if (format === 'excel') {
+        const formData = new FormData()
+        formData.append('file', file)
+        res = await fetch('/api/cameras/import-excel', { method: 'POST', body: formData })
+      } else {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        res = await fetch('/api/cameras/import-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
       }
-
-      const merged = [...cameras]
-      imported.forEach(imp => {
-        const idx = merged.findIndex(c => c.id === imp.id)
-        if (idx >= 0) {
-          merged[idx] = imp
-        } else {
-          merged.push(imp)
+      const result = await res.json()
+      if (result.success) {
+        if (window.addToast) {
+          window.addToast(
+            `✅ Импорт: всего ${result.imported} (обновлено ${result.updated || 0}, добавлено ${result.added || 0})`,
+            'success'
+          )
         }
-      })
-
-      await saveCameras(merged)
-      setCameras(merged)
-
-      if (window.addToast) {
-        window.addToast(`✅ Импортировано ${imported.length} камер`, 'success')
+        await loadCameras()
+      } else {
+        if (window.addToast) {
+          window.addToast('❌ ' + (result.error || 'Ошибка импорта'), 'error')
+        }
       }
     } catch (e) {
       console.error('Ошибка импорта:', e)
       if (window.addToast) {
-        window.addToast(`❌ Ошибка импорта: ${e.message}`, 'error')
+        window.addToast('❌ Ошибка импорта: ' + e.message, 'error')
       }
-    } finally {
-      event.target.value = ''
     }
   }
 
@@ -148,26 +191,117 @@ export default function CamerasEditor() {
 
   return (
     <div>
-      {/* Панель инструментов */}
+      {/* PATCH-194: панель инструментов — 2 кнопки с dropdown */}
       <div style={{
         display: 'flex',
         gap: '12px',
         marginBottom: '20px',
         flexWrap: 'wrap',
+        alignItems: 'center',
       }}>
-        <button className="btn btn-primary" onClick={handleExport}>
-          📤 Экспорт в JSON
-        </button>
+        {/* Экспорт */}
+        <div style={{ position: 'relative' }} ref={exportRef}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setExportOpen(o => !o)}
+          >
+            📤 Экспорт {exportOpen ? '▲' : '▼'}
+          </button>
+          {exportOpen && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0,
+              minWidth: '180px',
+              background: 'rgba(15, 23, 42, 0.98)',
+              border: '1px solid #334155',
+              borderRadius: '6px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              zIndex: 100,
+              overflow: 'hidden',
+            }}>
+              <button
+                onClick={() => handleExport('excel')}
+                style={{
+                  display: 'block', width: '100%', padding: '10px 14px',
+                  background: 'transparent', border: 'none', color: '#e0e3e8',
+                  fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                📊 В Excel (.xlsx)
+              </button>
+              <button
+                onClick={() => handleExport('json')}
+                style={{
+                  display: 'block', width: '100%', padding: '10px 14px',
+                  background: 'transparent', border: 'none', color: '#e0e3e8',
+                  fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                📄 В JSON (.json)
+              </button>
+            </div>
+          )}
+        </div>
 
-        <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
-          📥 Импорт из JSON
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            style={{ display: 'none' }}
-          />
-        </label>
+        {/* Импорт */}
+        <div style={{ position: 'relative' }} ref={importRef}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setImportOpen(o => !o)}
+          >
+            📥 Импорт {importOpen ? '▲' : '▼'}
+          </button>
+          {importOpen && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0,
+              minWidth: '180px',
+              background: 'rgba(15, 23, 42, 0.98)',
+              border: '1px solid #334155',
+              borderRadius: '6px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              zIndex: 100,
+              overflow: 'hidden',
+            }}>
+              <label style={{
+                display: 'block', width: '100%', padding: '10px 14px',
+                background: 'transparent', border: 'none', color: '#e0e3e8',
+                fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer',
+              }}>
+                📊 Из Excel (.xlsx)
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files[0]
+                    if (f) handleImportFile(f, 'excel')
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              <label style={{
+                display: 'block', width: '100%', padding: '10px 14px',
+                background: 'transparent', border: 'none', color: '#e0e3e8',
+                fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer',
+              }}>
+                📄 Из JSON (.json)
+                <input
+                  type="file"
+                  accept=".json"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files[0]
+                    if (f) handleImportFile(f, 'json')
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+          )}
+        </div>
 
         <span style={{
           display: 'flex',
