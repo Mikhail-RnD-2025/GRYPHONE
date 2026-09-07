@@ -42,14 +42,14 @@ CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key);
 -- Каждая камера может иметь основной поток (main_url) и субпоток (sub_url).
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cameras (
-    -- Уникальный идентификатор камеры (обычно из Excel или импорта)
-    id TEXT PRIMARY KEY,
-    -- Человекочитаемое имя камеры
-    name TEXT,
-    -- RTSP URL основного потока (обязательный)
+    -- PATCH-184: части RTSP URL (login/pass/ip/port + пути потоков)
+    login TEXT,
+    pass TEXT,
+    ipaddress TEXT,
+    port TEXT,
     main_url TEXT,
-    -- RTSP URL субпотока (опциональный, для снижения нагрузки)
     sub_url TEXT,
+    sub2_url TEXT,
     -- Включена ли камера (0=выключена, 1=включена)
     enabled INTEGER DEFAULT 1,
     -- Комментарий/описание камеры (например, расположение)
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS cameras (
     audio INTEGER DEFAULT 1,
     -- Местоположение камеры (физическое: этаж, корпус, комната)
     location TEXT
+);
 );
 
 CREATE INDEX IF NOT EXISTS idx_cameras_enabled ON cameras(enabled);

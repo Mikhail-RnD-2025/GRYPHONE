@@ -77,9 +77,9 @@ class StreamManager:
         for cam in cameras:
             if not cam.enabled:
                 continue
-            needed[cam.main_route_id] = (cam.main_url, cam.id)
+            needed[cam.main_route_id] = (cam.build_url('main_url'), cam.id)  # PATCH-184
             if cam.has_sub_stream:
-                needed[cam.sub_route_id] = (cam.sub_url, cam.id)
+                needed[cam.sub_route_id] = (cam.build_url('sub_url'), cam.id)  # PATCH-184
 
         with self._lock:
             # Останавливаем воркеры, которых нет в нужном списке.

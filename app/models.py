@@ -16,8 +16,13 @@ class Camera:
 
     id: str
     name: str
-    main_url: str
+    login: str = ""
+    pass_: str = field(default="", metadata={"alias": "pass"})
+    ipaddress: str = ""
+    port: str = "554"
+    main_url: str = ""
     sub_url: str = ""
+    sub2_url: str = ""
     enabled: bool = True
     comment: str = ""
     audio: bool = True
@@ -25,36 +30,58 @@ class Camera:
 
     @property
     def main_route_id(self) -> str:
-        """Идентификатор основного потока (английский суффикс)."""
         return f"{self.id}_main"
 
     @property
     def sub_route_id(self) -> str:
-        """Идентификатор субпотока (английский суффикс)."""
         return f"{self.id}_sub"
 
     @property
     def has_sub_stream(self) -> bool:
-        """Проверяет, есть ли отдельный субпоток."""
-        return bool(self.sub_url) and self.sub_url.strip() != "" and \
-               self.sub_url != self.main_url
+        return bool(self.sub_url) and self.sub_url.strip() != "" and self.sub_url != self.main_url
+
+    def build_url(self, stream_type: str = "main_url") -> str:
+        """PATCH-184: собирает полный RTSP URL на сервере."""
+        path = getattr(self, stream_type, "")
+        if not path:
+            return ""
+
+        auth = ""
+        if self.login:
+            auth = self.login
+            if self.pass_:
+                auth += f":{self.pass_}"
+            auth += "@"
+
+        # Гарантируем ровно один / между портом и путём
+        path = path.lstrip('/')
+        return f"rtsp://{auth}{self.ipaddress}:{self.port}/{path}"
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if 'pass_' in d:
+            d['pass'] = d.pop('pass_')
+        return d
 
     @classmethod
     def from_raw(cls, raw: Dict[str, Any]) -> Optional["Camera"]:
         if not isinstance(raw, dict):
             return None
         cam_id = raw.get("id")
+        ipaddress = raw.get("ipaddress")
         main_url = raw.get("main_url")
-        if not cam_id or not main_url:
+        if not cam_id or not ipaddress or not main_url:
             return None
         return cls(
             id=str(cam_id).strip(),
             name=str(raw.get("name", cam_id)).strip(),
-            main_url=str(main_url).strip(),
-            sub_url=str(raw.get("sub_url", "")).strip(),
+            login=str(raw.get("login", "")).strip(),
+            pass_=str(raw.get("pass", "")).strip(),
+            ipaddress=str(ipaddress).strip(),
+            port=str(raw.get("port", "554")).strip(),
+            main_url=str(main_url).strip().lstrip('/'),  # PATCH-184: обрезка ведущего /
+            sub_url=str(raw.get("sub_url", "")).strip().lstrip('/'),
+            sub2_url=str(raw.get("sub2_url", "")).strip().lstrip('/'),
             enabled=bool(raw.get("enabled", True)),
             comment=str(raw.get("comment", "")).strip(),
             audio=bool(raw.get("audio", True)),
