@@ -351,7 +351,10 @@ class CameraImportService:
                 ws.append([
                     cam.id, cam.name, cam.login, cam.pass_, cam.ipaddress, cam.port,
                     cam.main_url, cam.sub_url, cam.sub2_url,
-                    bool(cam.enabled), cam.comment, bool(cam.audio), cam.location  # PATCH-197: TRUE/FALSE
+                    'true' if cam.enabled else 'false',
+                    cam.comment,
+                    'true' if cam.audio else 'false',  # PATCH-198: текст, не locale-boolean
+                    cam.location
                 ])
 
             wb.save(file_path)
