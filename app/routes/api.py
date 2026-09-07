@@ -8,11 +8,12 @@ app/routes/api.py
 /api/cameras/location.
 """
 import logging
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 
 from app.config import config
 from app.models import Event
 from app.services.camera_service import camera_service
+from app.services.camera_import_service import camera_import_service  # PATCH-191
 from app.services.stream_manager import stream_manager
 from app.services.config_sync import config_sync
 
@@ -331,3 +332,53 @@ def register(app):
         camera_service.save_sets({"sets": sets_dict})
         return jsonify({"ok": True, "camera_ids": new_order})
 
+    # ========================================================================
+    # PATCH-192: экспорт/импорт камер (import-excel живёт в excel_import.py)
+    # ========================================================================
+
+    @app.route("/api/cameras/export-excel", methods=["GET"])
+    def export_cameras_excel():
+        """Экспорт камер в Excel-файл."""
+        import tempfile
+        import os
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        tmp.close()
+        try:
+            result = camera_import_service.export_to_excel(Path(tmp.name))
+            if not result.get("success"):
+                return jsonify(result), 500
+            return send_file(
+                tmp.name,
+                as_attachment=True,
+                download_name="cameras.xlsx",
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        finally:
+            import atexit
+            atexit.register(lambda p=tmp.name: os.path.exists(p) and os.unlink(p))
+
+    @app.route("/api/cameras/import-json", methods=["POST"])
+    def import_cameras_json():
+        """Импорт камер из JSON-массива."""
+        data = request.get_json(silent=True)
+        if data is None:
+            # PATCH-193: fallback парсинг (для Windows CMD)
+            try:
+                import json as _json
+                raw = request.get_data(as_text=True)
+                data = _json.loads(raw)
+            except Exception as e:
+                logger.error(f"Не удалось распарсить JSON: {e}")
+                return jsonify({"success": False, "error": f"Не удалось распарсить JSON: {e}"}), 400
+        if not isinstance(data, list):
+            return jsonify({"success": False, "error": "Ожидается JSON-массив камер"}), 400
+        result = camera_import_service.import_from_json(data)
+        if not result.get("success"):
+            return jsonify(result), 400
+        return jsonify(result)
+
+
+    @app.route("/api/cameras/export-json", methods=["GET"])
+    def export_cameras_json():
+        """Экспорт камер в JSON-массив."""
+        return jsonify(camera_import_service.export_to_json())

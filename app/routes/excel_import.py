@@ -43,72 +43,27 @@ def register(app):
     """Регистрирует роут импорта Excel в приложении."""
 
     @app.route("/api/cameras/import-excel", methods=["POST"])
-    def import_excel():
-        """
-        Импортирует камеры из загруженного Excel файла.
-
-        Поддерживаемые форматы: .xlsx, .xls
-        Файл временно сохраняется, обрабатывается и удаляется.
-        """
-        # Проверяем наличие файла
-        if 'file' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'Файл не загружен',
-                'message': 'В запросе отсутствует поле "file"'
-            }), 400
-
-        file = request.files['file']
-
-        # Проверяем имя файла
-        if file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'Файл не выбран',
-                'message': 'Имя файла пустое'
-            }), 400
-
-        # Проверяем расширение
-        filename = file.filename.lower()
-        if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
-            return jsonify({
-                'success': False,
-                'error': 'Неверный формат файла',
-                'message': 'Поддерживаются только файлы .xlsx или .xls'
-            }), 400
-
+    def import_cameras_excel():
+        """PATCH-192: импорт через camera_import_service."""
+        if "file" not in request.files:
+            return jsonify({"success": False, "error": "Нет файла (поле file)"}), 400
+        file = request.files["file"]
+        if not file.filename:
+            return jsonify({"success": False, "error": "Пустое имя файла"}), 400
+        if not file.filename.lower().endswith((".xlsx", ".xls")):
+            return jsonify({"success": False, "error": "Нужен файл .xlsx или .xls"}), 400
+        import tempfile
+        import os
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
         try:
-            # Создаём временный файл
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix='.xlsx' if filename.endswith('.xlsx') else '.xls'
-            ) as tmp_file:
-                tmp_path = tmp_file.name
-                file.save(tmp_path)
-
-            logger.info(f"📁 Загружен файл: {file.filename} → {tmp_path}")
-
-            # Импортируем через import_from_excel
-            from import_from_excel import import_excel as import_func
-
-            db_path = Path(app.config.get('DB_PATH', str(DATABASE_PATH)))
-            result = import_func(tmp_path, str(db_path))
-
-            return jsonify(result)
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка импорта Excel: {e}", exc_info=True)
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'message': f'Ошибка при обработке файла: {e}'
-            }), 500
-
+            file.save(tmp.name)
+            tmp.close()
+            result = camera_import_service.import_from_excel(Path(tmp.name))
         finally:
-            # Удаляем временный файл
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
-                try:
-                    os.unlink(tmp_path)
-                    logger.info(f"🗑️ Временный файл удалён: {tmp_path}")
-                except Exception as e:
-                    logger.warning(f"⚠️  Не удалось удалить временный файл: {e}")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
+        if not result.get("success"):
+            return jsonify(result), 400
+        return jsonify(result)

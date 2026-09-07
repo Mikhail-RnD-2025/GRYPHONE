@@ -1,35 +1,4 @@
-#!/usr/bin/env python3
-"""
-190. update_scripts/190_camera_import_service.py
-----------------------------------------------------------------------------
-Создаёт app/services/camera_import_service.py:
-  • Парсинг Excel (openpyxl) с маппингом колонок (рус/англ)
-  • Автоматический разбор полных RTSP URL на части (login/pass/ip/port/paths)
-  • Обрезка ведущего / из путей потоков
-  • Валидация обязательных полей (ipaddress, main_url)
-  • Работа через camera_service (не через settings)
-  • Методы: import_from_excel, export_to_excel, import_from_json, export_to_json
-
-ЗАПУСК: python update_scripts/190_camera_import_service.py
-"""
-
-import sys
-from pathlib import Path
-
-
-def find_project_root():
-    p = Path.cwd()
-    while True:
-        if (p / "frontend").is_dir() and (p / "update_scripts").is_dir():
-            return p
-        parent = p.parent
-        if parent == p:
-            print("[FAIL] Не найден корень проекта")
-            sys.exit(1)
-        p = parent
-
-
-CAMERA_IMPORT_SERVICE = r'''# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 app/services/camera_import_service.py
 ======================================
@@ -319,12 +288,27 @@ class CameraImportService:
             if not cameras:
                 return {'success': False, 'error': 'Не найдено валидных камер в файле', 'errors': errors}
 
-            # Сохраняем через camera_service
-            self.camera_service.save_cameras(cameras)
+            # PATCH-193: МЕРЖ — обновление существующих + добавление новых
+            current_cams = {c.id: c.to_dict() for c in self.camera_service.all_cameras()}
+            updated = 0
+            added = 0
+            for new_cam in cameras:
+                cam_id = new_cam.get('id')
+                if cam_id in current_cams:
+                    current_cams[cam_id].update(new_cam)
+                    updated += 1
+                else:
+                    current_cams[cam_id] = new_cam
+                    added += 1
+
+            all_cams = list(current_cams.values())
+            self.camera_service.save_cameras(all_cams)
 
             return {
                 'success': True,
-                'imported': len(cameras),
+                'imported': len(all_cams),
+                'updated': updated,
+                'added': added,
                 'skipped': skipped_rows,
                 'errors': errors
             }
@@ -342,46 +326,50 @@ class CameraImportService:
         try:
             cameras = self.camera_service.all_cameras()
 
+            # PATCH-193: проверка пустого списка
+            if not cameras:
+                logger.warning("export_to_excel: список камер пуст")
+                # всё равно создаём файл с заголовками
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "Камеры"
+                headers = ['ID', 'Имя', 'Login', 'Пароль', 'IP-адрес', 'Порт',
+                          'Путь основного потока', 'Путь субпотока', 'Путь sub2',
+                          'Включена', 'Комментарий', 'Аудио', 'Местоположение']
+                ws.append(headers)
+                wb.save(file_path)
+                wb.close()
+                return {'success': True, 'exported': 0, 'warning': 'Список камер пуст'}
+
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Камеры"
 
-            # Заголовки
-            headers = ['ID', 'Имя', 'Login', 'Пароль', 'IP-адрес', 'Порт', 
+            headers = ['ID', 'Имя', 'Login', 'Пароль', 'IP-адрес', 'Порт',
                       'Путь основного потока', 'Путь субпотока', 'Путь sub2',
                       'Включена', 'Комментарий', 'Аудио', 'Местоположение']
             ws.append(headers)
 
-            # Данные
             for cam in cameras:
                 ws.append([
-                    cam.id,
-                    cam.name,
-                    cam.login,
-                    cam.pass_,
-                    cam.ipaddress,
-                    cam.port,
-                    cam.main_url,
-                    cam.sub_url,
-                    cam.sub2_url,
-                    cam.enabled,
-                    cam.comment,
-                    cam.audio,
-                    cam.location
+                    cam.id, cam.name, cam.login, cam.pass_, cam.ipaddress, cam.port,
+                    cam.main_url, cam.sub_url, cam.sub2_url,
+                    cam.enabled, cam.comment, cam.audio, cam.location
                 ])
 
             wb.save(file_path)
             wb.close()
-
             return {'success': True, 'exported': len(cameras)}
 
         except Exception as e:
             return {'success': False, 'error': f'Ошибка экспорта: {str(e)}'}
 
     def import_from_json(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Импортирует камеры из JSON массива."""
+        """Импортирует камеры из JSON массива (МЕРЖ: обновление + добавление)."""
         try:
-            cameras = []
+            current_cams = {c.id: c.to_dict() for c in self.camera_service.all_cameras()}
+            updated = 0
+            added = 0
             errors = []
 
             for i, cam_data in enumerate(data):
@@ -400,25 +388,33 @@ class CameraImportService:
                                 cam_data['port'] = parsed['port']
                             cam_data['main_url'] = parsed['path']
 
-                    # Валидация
-                    if not cam_data.get('id') or not cam_data.get('ipaddress') or not cam_data.get('main_url'):
-                        errors.append(f"Камера {i}: пропущена (нет ID, IP или main_url)")
+                    cam_id = cam_data.get('id')
+                    if not cam_id or not cam_data.get('ipaddress') or not cam_data.get('main_url'):
+                        errors.append(f"Камера {i}: пропущена (нет ID/IP/main_url)")
                         continue
 
-                    cameras.append(cam_data)
+                    if cam_id in current_cams:
+                        current_cams[cam_id].update(cam_data)
+                        updated += 1
+                    else:
+                        current_cams[cam_id] = cam_data
+                        added += 1
 
                 except Exception as e:
                     errors.append(f"Камера {i}: ошибка - {str(e)}")
                     continue
 
-            if not cameras:
+            all_cams = list(current_cams.values())
+            if not all_cams:
                 return {'success': False, 'error': 'Не найдено валидных камер', 'errors': errors}
 
-            self.camera_service.save_cameras(cameras)
+            self.camera_service.save_cameras(all_cams)
 
             return {
                 'success': True,
-                'imported': len(cameras),
+                'imported': len(all_cams),
+                'updated': updated,
+                'added': added,
                 'errors': errors
             }
 
@@ -438,47 +434,3 @@ class CameraImportService:
 from app.services.camera_service import camera_service
 
 camera_import_service = CameraImportService(camera_service)
-'''
-
-
-def main():
-    root = find_project_root()
-    f = root / "app" / "services" / "camera_import_service.py"
-
-    print("=" * 76)
-    print("190: CameraImportService (импорт/экспорт Excel/JSON)")
-    print("=" * 76)
-    print()
-
-    # Проверка синтаксиса
-    try:
-        compile(CAMERA_IMPORT_SERVICE, str(f), "exec")
-    except SyntaxError as e:
-        print(f"  [FAIL] синтаксис: {e}")
-        sys.exit(1)
-
-    f.write_text(CAMERA_IMPORT_SERVICE, encoding="utf-8")
-    print("  [OK] app/services/camera_import_service.py создан")
-
-    print()
-    print("=" * 76)
-    print("✅ Готово!")
-    print()
-    print("Сервис предоставляет:")
-    print("  • import_from_excel(file_path) — парсинг Excel с маппингом колонок")
-    print("  • export_to_excel(file_path) — экспорт в Excel")
-    print("  • import_from_json(data) — импорт из JSON массива")
-    print("  • export_to_json() — экспорт в JSON массив")
-    print()
-    print("Особенности:")
-    print("  • Автоматический разбор полных RTSP URL на части")
-    print("  • Обрезка ведущего / из путей потоков")
-    print("  • Поддержка русского/английского в заголовках Excel")
-    print("  • Валидация обязательных полей (id, ipaddress, main_url)")
-    print()
-    print("Следующий шаг: PATCH-191 (API endpoints)")
-    print("=" * 76)
-
-
-if __name__ == "__main__":
-    main()
