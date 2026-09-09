@@ -168,7 +168,7 @@ class Database:
             if default_set_row:
                 default_set_id = default_set_row[0]
                 # Получаем все включённые камеры
-                cursor.execute("SELECT id FROM cameras WHERE enabled = 1")
+                cursor.execute("SELECT id FROM cameras")  # PATCH-206: включая отключённые
                 enabled_cameras = cursor.fetchall()
                 for cam_row in enabled_cameras:
                     cam_id = cam_row[0]

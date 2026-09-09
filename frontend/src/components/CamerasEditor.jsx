@@ -149,7 +149,8 @@ export default function CamerasEditor() {
       if (result.success) {
         if (window.addToast) {
           window.addToast(
-            `✅ Импорт: всего ${result.imported} (обновлено ${result.updated || 0}, добавлено ${result.added || 0})`,
+            `✅ Импорт: всего ${result.imported} (обновлено ${result.updated || 0}, добавлено ${result.added || 0})` +
+            (result.linked_to_set ? ` | в набор ${result.target_set}: +${result.linked_to_set}` : ''),
             'success'
           )
         }

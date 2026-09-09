@@ -305,12 +305,17 @@ class CameraImportService:
             all_cams = list(current_cams.values())
             self.camera_service.save_cameras(all_cams)
 
+            # PATCH-206: камеры вне наборов (включая отключённые) → в целевой набор
+            linked, target = self._ensure_set_membership([c.get('id') for c in all_cams])
+
             return {
                 'success': True,
                 'imported': len(all_cams),
                 'updated': updated,
                 'added': added,
                 'skipped': skipped_rows,
+                'linked_to_set': linked,
+                'target_set': target,
                 'errors': errors
             }
 
@@ -410,16 +415,42 @@ class CameraImportService:
 
             self.camera_service.save_cameras(all_cams)
 
+            # PATCH-206: камеры вне наборов (включая отключённые) → в целевой набор
+            linked, target = self._ensure_set_membership([c.get('id') for c in all_cams])
+
             return {
                 'success': True,
                 'imported': len(all_cams),
                 'updated': updated,
                 'added': added,
+                'linked_to_set': linked,
+                'target_set': target,
                 'errors': errors
             }
 
         except Exception as e:
             return {'success': False, 'error': f'Ошибка импорта: {str(e)}'}
+
+    def _ensure_set_membership(self, camera_ids: List[str]):
+        """PATCH-206: камеры, не состоящие ни в одном наборе (включая
+        отключённые), допривязываются к целевому набору (самому наполненному).
+        Возвращает (count, target_set_id)."""
+        from app.db.repositories import set_repo
+        sets = (set_repo.get_all() or {}).get("sets", {})
+        if not sets:
+            return 0, ""
+        member = set()
+        for s in sets.values():
+            member.update(s.get("camera_ids", s.get("cameras", [])) or [])
+        missing = [cid for cid in camera_ids if cid and cid not in member]
+        if not missing:
+            return 0, ""
+        target = sorted(
+            sets.keys(),
+            key=lambda k: (-len(sets[k].get("camera_ids", sets[k].get("cameras", [])) or []), k)
+        )[0]
+        n = set_repo.add_cameras(target, missing)
+        return n, target
 
     def export_to_json(self) -> List[Dict[str, Any]]:
         """Экспортирует камеры в JSON массив."""

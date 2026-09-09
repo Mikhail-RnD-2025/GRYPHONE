@@ -12,6 +12,7 @@ Repository-слой (PATCH-201).
 import json  # PATCH-204
 from typing import List, Dict, Any, Optional
 
+from sqlalchemy import select, func  # PATCH-206
 from app.db import get_db
 from app.db.models import Camera, Setting
 
@@ -176,6 +177,33 @@ class SetRepository:
         from app.db.models import Set
         with get_db() as session:
             return [s.id for s in session.query(Set).all()]
+
+
+    def add_cameras(self, set_id: str, camera_ids: List[str]) -> int:
+        """PATCH-206: дописать камеры в конец набора (пропуск существующих)."""
+        from app.db.models import set_cameras
+        added = 0
+        with get_db() as session:
+            existing = {
+                r[0] for r in session.execute(
+                    select(set_cameras.c.camera_id).where(set_cameras.c.set_id == set_id)
+                )
+            }
+            max_pos = session.execute(
+                select(func.coalesce(func.max(set_cameras.c.position), -1)).where(
+                    set_cameras.c.set_id == set_id
+                )
+            ).scalar()
+            pos = (max_pos if max_pos is not None else -1) + 1
+            for cid in camera_ids:
+                if not cid or cid in existing:
+                    continue
+                session.execute(
+                    set_cameras.insert().values(set_id=set_id, camera_id=cid, position=pos)
+                )
+                pos += 1
+                added += 1
+        return added
 
 
 # ============================================================================
