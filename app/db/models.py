@@ -26,6 +26,7 @@ set_cameras = Table(
     Base.metadata,
     Column("set_id", String, ForeignKey("sets.id"), primary_key=True),
     Column("camera_id", String, ForeignKey("cameras.id"), primary_key=True),
+    Column("position", Integer, default=0),  # PATCH-203: порядок камер
 )
 
 
@@ -87,7 +88,7 @@ class Set(Base):
     aspect_ratio = Column(String, default="16:9")
 
     # Связь с камерами (через M2M)
-    cameras = relationship("Camera", secondary=set_cameras, back_populates="sets")
+    cameras = relationship("Camera", secondary=set_cameras, back_populates="sets", order_by="set_cameras.c.position")  # PATCH-203
 
     def __repr__(self) -> str:
         return f"<Set id={self.id} name={self.name!r}>"
@@ -99,6 +100,7 @@ class Set(Base):
             "grid_columns": self.grid_columns,
             "grid_rows": self.grid_rows,
             "aspect_ratio": self.aspect_ratio or "16:9",
+            "camera_ids": [c.id for c in self.cameras],  # PATCH-203: порядок из relationship
         }
 
 

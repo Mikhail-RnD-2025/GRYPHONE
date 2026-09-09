@@ -111,27 +111,54 @@ class SettingRepository:
 # ============================================================================
 class SetRepository:
     """
-    PATCH-201: репозиторий наборов.
-
-    ВРЕМЕННО использует legacy database.py, потому что модель Set в
-    app/db/models.py ещё не включает camera_ids (M2M без порядка).
-    В PATCH-202 будет переведён на чистый SQLAlchemy.
+    PATCH-203: репозиторий наборов (полный SQLAlchemy CRUD).
     """
 
     def get_all(self) -> Dict[str, Any]:
-        """Возвращает {"sets": {...}} в legacy-формате."""
-        from app.database import db as legacy_db
-        return legacy_db.get_all_sets() or {"sets": {}}
+        """Возвращает {"sets": {...}} с camera_ids."""
+        from app.db.models import Set
+        with get_db() as session:
+            sets = session.query(Set).all()
+            return {
+                "sets": {s.id: s.to_dict() for s in sets}
+            }
 
     def save(self, sets_data: Dict[str, Any]) -> None:
-        """Сохраняет все наборы (legacy save_sets)."""
-        from app.database import db as legacy_db
-        legacy_db.save_sets(sets_data)
+        """Сохраняет все наборы (полная замена)."""
+        from app.db.models import Set, set_cameras
+        with get_db() as session:
+            # Очищаем таблицы
+            session.query(Set).delete()
+            session.execute(set_cameras.delete())
+
+            # Добавляем новые наборы
+            for set_id, set_dict in sets_data.get("sets", {}).items():
+                s = Set(
+                    id=set_id,
+                    name=set_dict.get("name", set_id),
+                    grid_columns=set_dict.get("grid_columns", set_dict.get("max_columns", 4)),  # PATCH-203.2
+                    grid_rows=set_dict.get("grid_rows", set_dict.get("max_rows", 3)),  # PATCH-203.2
+                    aspect_ratio=set_dict.get("aspect_ratio", "16:9"),
+                )
+                session.add(s)
+                session.flush()  # получаем s.id
+
+                # Добавляем связи с камерами
+                camera_ids = set_dict.get("camera_ids", set_dict.get("cameras", []))  # PATCH-203.2
+                for pos, cam_id in enumerate(camera_ids):
+                    session.execute(
+                        set_cameras.insert().values(
+                            set_id=set_id,
+                            camera_id=cam_id,
+                            position=pos
+                        )
+                    )
 
     def get_ids(self) -> List[str]:
         """Список ID наборов."""
-        data = self.get_all()
-        return list(data.get("sets", {}).keys())
+        from app.db.models import Set
+        with get_db() as session:
+            return [s.id for s in session.query(Set).all()]
 
 
 # ============================================================================

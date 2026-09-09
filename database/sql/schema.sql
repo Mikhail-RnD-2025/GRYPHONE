@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS set_cameras (
     set_id TEXT,
     -- Ссылка на камеру (cameras.id)
     camera_id TEXT,
+    -- PATCH-203: порядок камер в наборе
+    position INTEGER DEFAULT 0,
     -- Составной первичный ключ: камера может быть в наборе только один раз
     PRIMARY KEY (set_id, camera_id),
     -- Внешний ключ на таблицу sets (каскадное удаление)
