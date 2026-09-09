@@ -9,7 +9,7 @@ app/services/camera_service.py
 import logging
 from typing import Dict, List, Optional
 
-from app.database import db
+from app.db.repositories import camera_repo, set_repo  # PATCH-202
 from app.models import Camera, Set
 
 logger = logging.getLogger(__name__)
@@ -28,14 +28,14 @@ class CameraService:
         self._load()
 
     def _load(self) -> None:
-        raw_cameras = db.get_all_cameras() or []
+        raw_cameras = camera_repo.get_all() or []  # PATCH-202
         self._cameras = {}
         for raw in raw_cameras:
             cam = Camera.from_raw(raw)
             if cam:
                 self._cameras[cam.id] = cam
 
-        raw_sets = db.get_all_sets() or {"default_set": "", "sets": {}}
+        raw_sets = set_repo.get_all() or {"sets": {}}  # PATCH-202
         # [PATCH-66-B] Адаптация ключей БД к модели Set
         for _sid, _sdata in raw_sets.get("sets", {}).items():
             if isinstance(_sdata, dict):
@@ -73,7 +73,7 @@ class CameraService:
             if cam:
                 self._cameras[cam.id] = cam
                 clean.append(cam.to_dict())
-        db.save_cameras_list( clean)
+        camera_repo.save_all( clean)  # PATCH-202
         self._sync_workers()
         return len(clean)
 
@@ -116,7 +116,7 @@ class CameraService:
         return cam
 
     def _persist_cameras(self) -> None:
-        db.save_cameras_list( [c.to_dict() for c in self._cameras.values()])
+        camera_repo.save_all( [c.to_dict() for c in self._cameras.values()])  # PATCH-202
 
     def all_sets(self) -> Dict[str, Set]:
         return dict(self._sets)
@@ -153,7 +153,7 @@ class CameraService:
         }
         if self._current_set not in self._sets:
             self._current_set = ""
-        db.save_sets_data( raw)
+        set_repo.save( raw)  # PATCH-202
         return True
 
     def switch_set(self, set_id: str) -> bool:
