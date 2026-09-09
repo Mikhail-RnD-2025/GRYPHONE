@@ -2,10 +2,7 @@
 """
 app/db/__init__.py
 ==================
-SQLAlchemy базовый слой (PATCH-200).
-
-Этот модуль НЕ заменяет app/database.py — работает параллельно.
-Используется в новых сервисах/репозиториях.
+SQLAlchemy базовый слой (PATCH-207.3.1: без автоимпорта models).
 """
 from contextlib import contextmanager
 from pathlib import Path
@@ -14,14 +11,15 @@ from typing import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
-from app.database import db as _legacy_db  # PATCH-200.1: путь БД из легаси-слоя
 
+# PATCH-207.3: путь БД напрямую (без legacy database.py)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # PATCH-207.3.2: корень проекта
+DATABASE_DIR = BASE_DIR / "database"
+DATABASE_DIR.mkdir(exist_ok=True)
+DATABASE_PATH = DATABASE_DIR / "gryphone-vision.db"
 
-# URL базы данных (SQLite, абсолютный путь) — источник истины: legacy database.py
-_db_path = Path(_legacy_db.db_path).resolve()
-DATABASE_URL = f"sqlite:///{_db_path}"
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
-# Engine: check_same_thread=False нужен для Flask (потоки запросов)
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
@@ -48,5 +46,5 @@ def get_db() -> Iterator[Session]:
         session.close()
 
 
-# Импорт моделей для регистрации их в Base.metadata
-from app.db import models  # noqa: E402, F401
+# PATCH-207.3.1: НЕ импортируем models автоматически (избегаем цикла)
+# Models импортируются явно: from app.db.models import Camera, Set, ...
