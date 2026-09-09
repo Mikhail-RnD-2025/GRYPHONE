@@ -26,7 +26,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict
 
-from app.database import db
+from app.db.repositories import setting_repo  # PATCH-204
 
 # Пути относительно корня проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -143,11 +143,11 @@ class ConfigManager:
 
         Если в БД ещё нет ключа 'config' (первый запуск) — сохраняет эталон.
         """
-        saved = db.get(self.KEY, None)
+        saved = setting_repo.get_json(self.KEY, None)  # PATCH-204
         if saved is None or (isinstance(saved, dict) and not saved):
             # Первый запуск: сохраняем эталон в БД
             logger.info("Конфигурация не найдена в БД — инициализирую из SQL-файла")
-            db.save(self.KEY, self._default)
+            setting_repo.set_json(self.KEY, self._default)  # PATCH-204
             return copy.deepcopy(self._default)
         if not isinstance(saved, dict):
             saved = {}
@@ -162,7 +162,7 @@ class ConfigManager:
 
     def save(self) -> None:
         """Сохраняет текущую конфигурацию в БД."""
-        db.save(self.KEY, self._data)
+        setting_repo.set_json(self.KEY, self._data)  # PATCH-204
 
     def update(self, new_data: Dict[str, Any]) -> None:
         """Обновляет конфигурацию из словаря (слияние с текущей).

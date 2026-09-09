@@ -9,6 +9,7 @@ Repository-слой (PATCH-201).
   • возвращают dict/примитивы (не detached ORM-объекты)
   • инкапсулируют запросы — сервисам не нужен SQL
 """
+import json  # PATCH-204
 from typing import List, Dict, Any, Optional
 
 from app.db import get_db
@@ -89,6 +90,22 @@ class SettingRepository:
                 existing.value = value
             else:
                 session.add(Setting(key=key, value=value))
+    def get_json(self, key: str, default: Any = None) -> Any:
+        """PATCH-204: читает значение с JSON-десериализацией.
+        Совместимо с legacy db.get(): при ошибке парсинга возвращает сырую строку."""
+        raw = self.get(key, None)
+        if raw is None:
+            return default
+        try:
+            return json.loads(raw)
+        except (ValueError, TypeError):
+            return raw
+
+    def set_json(self, key: str, value: Any) -> None:
+        """PATCH-204: сохраняет значение с JSON-сериализацией.
+        Совместимо с legacy db.save(): ensure_ascii=False."""
+        self.set(key, json.dumps(value, ensure_ascii=False))
+
 
     def delete(self, key: str) -> bool:
         """Удаляет ключ. Возвращает True если был удалён."""
