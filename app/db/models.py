@@ -115,3 +115,23 @@ class Setting(Base):
 
     def __repr__(self) -> str:
         return f"<Setting key={self.key!r}>"
+
+# ----------------------------------------------------------------------------
+# Event (системные события — PATCH-207.2)
+# ----------------------------------------------------------------------------
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ts = Column(String, nullable=False)  # Unix timestamp
+    source = Column(String, nullable=False)  # 'camera', 'worker', 'system', 'user'
+    camera_id = Column(String, ForeignKey("cameras.id", ondelete="SET NULL"))
+    node_id = Column(String)
+    event_type = Column(String, nullable=False)
+    severity = Column(String, nullable=False, default="info")
+    payload = Column(String)  # JSON
+    acknowledged = Column(Integer, default=0)
+    sent_to_psim = Column(Integer, default=0)
+
+    def __repr__(self) -> str:
+        return f"<Event id={self.id} type={self.event_type}>"
