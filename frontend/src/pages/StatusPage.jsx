@@ -8,7 +8,7 @@ import Toasts from '../components/Toasts'
 
 export default function StatusPage() {
   return (
-    <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
+    <div className="page">
       <Header />
       <h1 className="page-title">📊 Состояние системы</h1>
       <div className="tab-content">

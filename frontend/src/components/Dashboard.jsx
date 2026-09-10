@@ -116,34 +116,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Общая статистика камер */}
-      <h3 style={{ marginBottom: '12px' }}>📹 Камеры</h3>
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        <MetricCard
-          title="Всего"
-          value={cameras.total}
-          subtitle={`${cameras.enabled} включено, ${cameras.disabled} выключено`}
-        />
-        <MetricCard
-          title="Онлайн"
-          value={cameras.online}
-          color="#059669"
-          subtitle="Потоки активны"
-        />
-        <MetricCard
-          title="Оффлайн"
-          value={cameras.offline}
-          color="#dc2626"
-          subtitle="Нет соединения"
-        />
-        <MetricCard
-          title="Подключение"
-          value={cameras.connecting}
-          color="#d97706"
-          subtitle="В процессе"
-        />
-      </div>
-
       {/* Нагрузка системы */}
       <h3 style={{ marginBottom: '12px' }}>💻 Система</h3>
       <div style={{
@@ -219,55 +191,6 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Проблемные камеры */}
-      <h3 style={{ marginBottom: '12px' }}>⚠️ Проблемные камеры</h3>
-      <div style={{
-        background: '#1e293b',
-        borderRadius: '8px',
-        padding: '16px',
-        border: '1px solid #334155',
-      }}>
-        {problem_cameras.length === 0 ? (
-          <div style={{ color: '#059669' }}>✅ Все камеры в порядке</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #334155' }}>
-                  <th style={{ textAlign: 'left', padding: '8px', color: '#94a3b8' }}>Камера</th>
-                  <th style={{ textAlign: 'left', padding: '8px', color: '#94a3b8' }}>Расположение</th>
-                  <th style={{ textAlign: 'left', padding: '8px', color: '#94a3b8' }}>Статус</th>
-                  <th style={{ textAlign: 'left', padding: '8px', color: '#94a3b8' }}>Сообщение</th>
-                </tr>
-              </thead>
-              <tbody>
-                {problem_cameras.map(cam => (
-                  <tr key={cam.id} style={{ borderBottom: '1px solid #334155' }}>
-                    <td style={{ padding: '8px' }}>{cam.name}</td>
-                    <td style={{ padding: '8px', color: '#94a3b8' }}>{cam.location || '—'}</td>
-                    <td style={{ padding: '8px' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        background: cam.state === 'недоступна' ? '#7f1d1d' : '#7c2d12',
-                        color: '#fff',
-                      }}>
-                        {cam.state}
-                      </span>
-                    </td>
-                    <td style={{ padding: '8px', color: '#94a3b8', fontSize: '0.875rem' }}>
-                      {cam.message || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
       </div>

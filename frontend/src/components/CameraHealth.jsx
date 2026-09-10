@@ -55,7 +55,7 @@ export default function CameraHealth() {
   if (!data) {
     return (
       <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-        ⏳ Загрузка здоровья камер...
+        ⏳ Загрузка состояния камер...
       </div>
     )
   }
@@ -103,7 +103,7 @@ export default function CameraHealth() {
   return (
     <div style={{ marginTop: '28px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' }}>
-        <h2 style={{ margin: 0, fontSize: '18px', color: '#f1f5f9' }}>🏥 Здоровье камер</h2>
+        <h2 style={{ margin: 0, fontSize: '18px', color: '#f1f5f9' }}>📊 Состояние камер</h2>
         <span style={{ fontSize: '11px', color: '#64748b' }}>
           обновлено {new Date(data.ts * 1000).toLocaleTimeString()}
         </span>
