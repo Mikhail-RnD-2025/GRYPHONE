@@ -3,6 +3,7 @@
 // ============================================================
 import Header from '../components/Header'
 import Dashboard from '../components/Dashboard'
+import CameraHealth from '../components/CameraHealth'  // PATCH-210
 import Toasts from '../components/Toasts'
 
 export default function StatusPage() {
@@ -12,6 +13,7 @@ export default function StatusPage() {
       <h1 className="page-title">📊 Состояние системы</h1>
       <div className="tab-content">
         <Dashboard />
+        <CameraHealth />
       </div>
       <Toasts />
     </div>

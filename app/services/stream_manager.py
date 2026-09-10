@@ -53,6 +53,12 @@ class StreamManager:
     def wait_ready(self, timeout: float = 5.0) -> bool:
         return self._ready_event.wait(timeout)
 
+
+    def get_all_statuses(self) -> Dict[str, dict]:
+        """PATCH-208: thread-safe копия всех статусов воркеров."""
+        with self._lock:
+            return {k: dict(v) for k, v in self._stats.items()}
+
     def stop(self) -> None:
         if not self._started or self._loop is None:
             return

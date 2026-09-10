@@ -383,3 +383,56 @@ def register(app):
     def export_cameras_json():
         """Экспорт камер в JSON-массив."""
         return jsonify(camera_import_service.export_to_json())
+
+    # ============================================================================
+    # PATCH-208: Health Dashboard API
+    # ============================================================================
+    @app.route("/api/health/cameras")
+    def health_cameras():
+        """Статусы всех камер (main + sub) для dashboard."""
+        import time as _time
+        cameras = camera_service.all_cameras()
+        all_stats = stream_manager.get_all_statuses()
+
+        result = {}
+        for cam in cameras:
+            rid_main = f"{cam.id}_main"
+            rid_sub = f"{cam.id}_sub"
+
+            if not cam.enabled:
+                st_main = {"state": "отключена", "msg": "Камера выключена", "metrics": {}}
+                st_sub = {"state": "отключена", "msg": "Камера выключена", "metrics": {}}
+            else:
+                st_main = all_stats.get(rid_main, {"state": "не_запущен", "msg": "Воркер не запущен", "metrics": {}})
+                st_sub = all_stats.get(rid_sub, {"state": "не_запущен", "msg": "Воркер не запущен", "metrics": {}})
+
+            result[cam.id] = {
+                "enabled": cam.enabled,
+                "name": cam.name,
+                "ip": cam.ipaddress,
+                "main": st_main,
+                "sub": st_sub,
+            }
+
+        enabled_cams = [c for c in result.values() if c["enabled"]]
+        streaming = sum(1 for c in enabled_cams
+                       if c["main"]["state"] == "в_сети" or c["sub"]["state"] == "в_сети")
+        errors = sum(1 for c in enabled_cams
+                    if c["main"]["state"] == "недоступна" or c["sub"]["state"] == "недоступна")
+        connecting = sum(1 for c in enabled_cams
+                        if c["main"]["state"] == "подключение" or c["sub"]["state"] == "подключение")
+
+        return jsonify({
+            "ts": _time.time(),
+            "cameras": result,
+            "summary": {
+                "total": len(cameras),
+                "enabled": len(enabled_cams),
+                "disabled": len(cameras) - len(enabled_cams),
+                "streaming": streaming,
+                "connecting": connecting,
+                "errors": errors,
+            },
+        })
+
+
