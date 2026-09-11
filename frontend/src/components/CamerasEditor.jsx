@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'  // PATCH-194
+import { useState, useEffect, useRef, useMemo } from 'react'  // PATCH-219.1: useMemo  // PATCH-194
 import { getCameras, saveCameras } from '../api'
 
 export default function CamerasEditor() {
@@ -8,6 +8,10 @@ export default function CamerasEditor() {
   const [editForm, setEditForm] = useState(null)  // PATCH-189: null вместо editingId
   const [exportOpen, setExportOpen] = useState(false)  // PATCH-194
   const [importOpen, setImportOpen] = useState(false)  // PATCH-194
+  const [search, setSearch] = useState('')  // PATCH-219
+  const [enabledFilter, setEnabledFilter] = useState('all')
+  const [sortCol, setSortCol] = useState('id')
+  const [sortDir, setSortDir] = useState(1)
   const exportRef = useRef(null)  // PATCH-194
   const importRef = useRef(null)  // PATCH-194
 
@@ -28,6 +32,26 @@ export default function CamerasEditor() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+
+  // PATCH-219: производный список камер (search ∩ filter → sort)
+  const visibleCameras = useMemo(() => {
+    let list = cameras
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      list = list.filter(c =>
+        (c.id || '').toLowerCase().includes(q) ||
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.ipaddress || '').toLowerCase().includes(q))
+    }
+    if (enabledFilter !== 'all')
+      list = list.filter(c => enabledFilter === 'on' ? c.enabled : !c.enabled)
+    return [...list].sort((a, b) => {
+      const av = String(a[sortCol] ?? '').toLowerCase()
+      const bv = String(b[sortCol] ?? '').toLowerCase()
+      return av.localeCompare(bv, undefined, { numeric: true }) * sortDir
+    })
+  }, [cameras, search, enabledFilter, sortCol, sortDir])
 
   const loadCameras = async () => {
     try {
@@ -314,6 +338,52 @@ export default function CamerasEditor() {
         </span>
       </div>
 
+      {/* PATCH-219: Панель поиска/фильтрации */}
+      <div style={{
+        display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap',
+        padding: '12px', marginBottom: '12px',
+        background: '#1e293b', border: '1px solid #334155', borderRadius: '8px',
+      }}>
+        <input
+          type="text"
+          placeholder="🔍 Поиск: ID, имя, IP..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            flex: '1 1 200px', padding: '8px 12px',
+            background: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
+            color: '#e0e3e8', fontSize: '0.875rem', outline: 'none',
+          }}
+        />
+        <select
+          value={enabledFilter}
+          onChange={(e) => setEnabledFilter(e.target.value)}
+          style={{
+            padding: '8px 12px', background: '#0f172a', border: '1px solid #334155',
+            borderRadius: '6px', color: '#e0e3e8', fontSize: '0.875rem', cursor: 'pointer',
+          }}
+        >
+          <option value="all">Все</option>
+          <option value="on">Включённые</option>
+          <option value="off">Выключенные</option>
+        </select>
+        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+          Найдено: <strong style={{ color: '#e0e3e8' }}>{visibleCameras.length}</strong> из {cameras.length}
+        </span>
+        {(search || enabledFilter !== 'all') && (
+          <button
+            onClick={() => { setSearch(''); setEnabledFilter('all') }}
+            style={{
+              padding: '6px 12px', background: '#dc2626', border: 'none',
+              borderRadius: '6px', color: '#fff', fontSize: '0.75rem', cursor: 'pointer',
+            }}
+          >
+            ✕ Сбросить
+          </button>
+        )}
+      </div>
+
+
       {/* Таблица камер */}
       <div style={{
         overflowX: 'auto',
@@ -330,15 +400,30 @@ export default function CamerasEditor() {
               background: '#1e293b',
               borderBottom: '1px solid #334155',
             }}>
-              <th style={{ padding: '12px', textAlign: 'left' }}>ID</th>
-              <th style={{ padding: '12px', textAlign: 'left' }}>Имя</th>
-              <th style={{ padding: '12px', textAlign: 'left' }}>IP:Порт</th>
+              <th
+                onClick={() => { setSortCol('id'); setSortDir(d => sortCol === 'id' ? -d : 1) }}
+                style={{ padding: '12px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+              >
+                ID {sortCol === 'id' && (sortDir === 1 ? '▲' : '▼')}
+              </th>
+              <th
+                onClick={() => { setSortCol('name'); setSortDir(d => sortCol === 'name' ? -d : 1) }}
+                style={{ padding: '12px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+              >
+                Имя {sortCol === 'name' && (sortDir === 1 ? '▲' : '▼')}
+              </th>
+              <th
+                onClick={() => { setSortCol('ipaddress'); setSortDir(d => sortCol === 'ipaddress' ? -d : 1) }}
+                style={{ padding: '12px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+              >
+                IP:Порт {sortCol === 'ipaddress' && (sortDir === 1 ? '▲' : '▼')}
+              </th>
               <th style={{ padding: '12px', textAlign: 'center' }}>Включена</th>
               <th style={{ padding: '12px', textAlign: 'center' }}>Действия</th>
             </tr>
           </thead>
           <tbody>
-            {cameras.map((camera) => (
+            {visibleCameras.map((camera) => (
               <tr
                 key={camera.id}
                 style={{
@@ -380,6 +465,32 @@ export default function CamerasEditor() {
                 </td>
               </tr>
             ))}
+
+            {visibleCameras.length === 0 && (
+              <tr>
+                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  {search || enabledFilter !== 'all' ? (
+                    <>
+                      Ничего не найдено
+                      {search && <> по запросу <strong>"{search}"</strong></>}
+                      <br />
+                      <button
+                        onClick={() => { setSearch(''); setEnabledFilter('all') }}
+                        style={{
+                          marginTop: '12px', padding: '6px 16px', background: '#334155',
+                          border: 'none', borderRadius: '6px', color: '#e0e3e8',
+                          fontSize: '0.75rem', cursor: 'pointer',
+                        }}
+                      >
+                        Сбросить фильтры
+                      </button>
+                    </>
+                  ) : (
+                    'Нет камер'
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

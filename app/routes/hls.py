@@ -10,6 +10,7 @@ app/routes/hls.py
 import logging
 from pathlib import Path
 from flask import send_from_directory, abort, Response
+from app.workers.hls_worker import _sanitize_for_fs  # PATCH-222.1
 
 from app.config import config
 
@@ -22,7 +23,7 @@ def register(app):
         """Отдаёт HLS-сегменты с правильными MIME-типами."""
         hls_cache = config.get("paths", "hls_cache", default="hls_cache")
         project_root = Path(__file__).parent.parent.parent
-        directory = project_root / hls_cache / "camera" / route_id
+        directory = project_root / hls_cache / "camera" / _sanitize_for_fs(route_id)  # PATCH-222.1
 
         # Проверка безопасности пути.
         file_path = (directory / filename).resolve()

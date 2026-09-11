@@ -1,4 +1,34 @@
-// ============================================================
+#!/usr/bin/env python3
+"""
+214. update_scripts/214_status_cards_filters.py
+----------------------------------------------------------------------------
+  • hls_worker.py: при переподключении статус «недоступна» НЕ сбрасывается
+    (msg меняется на «Переподключение...», state остаётся)
+  • CameraHealth.jsx:
+      - плашки: цифра в одну строку с названием
+      - клик по плашке = фильтр (мульти, AND); повторный клик — сброс
+      - «Стримится» → «Подключено», «Ошибок» → «Недоступно»
+
+ЗАПУСК: python update_scripts/214_status_cards_filters.py
+"""
+
+import sys
+from pathlib import Path
+
+
+def find_project_root():
+    p = Path.cwd()
+    while True:
+        if (p / "frontend").is_dir() and (p / "update_scripts").is_dir():
+            return p
+        parent = p.parent
+        if parent == p:
+            print("[FAIL] Не найден корень проекта")
+            sys.exit(1)
+        p = parent
+
+
+CAMERA_HEALTH_V2 = '''// ============================================================
 //  GRYPHONE — Состояние камер (PATCH-210/214)
 //  ------------------------------------------------------------
 //  Секция состояния камер для страницы /status.
@@ -45,62 +75,20 @@ const FILTERS = {
 export default function CameraHealth() {
   const [data, setData] = useState(null)
   const [active, setActive] = useState([])  // PATCH-214: активные фильтры (AND)
-  const [sortCol, setSortCol] = useState('id')     // PATCH-221
-  const [sortDir, setSortDir] = useState(1)
-
-  // PATCH-218.2: SSE primary + polling fallback
-  const [mode, setMode] = useState('poll')
 
   useEffect(() => {
     let alive = true
-    let es = null
-    let pollTimer = null
-
-    const applyData = (d) => { if (alive) setData(d) }
-
-    const stopPolling = () => {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-    }
-
-    const startPolling = () => {
-      if (pollTimer || !alive) return
-      const load = async () => {
-        try {
-          const r = await fetch('/api/health/cameras')
-          if (r.ok && alive) applyData(await r.json())
-        } catch (e) { /* сервер перезапускается */ }
-      }
-      load()
-      pollTimer = setInterval(load, 5000)
-      if (alive) setMode('poll')
-    }
-
-    const startSSE = () => {
+    const load = async () => {
       try {
-        es = new EventSource('/api/health/cameras/stream')
-        es.onmessage = (e) => {
-          try {
-            applyData(JSON.parse(e.data))
-            stopPolling()          // SSE работает — polling не нужен
-            if (alive) setMode('live')
-          } catch (err) { /* битый JSON — игнор */ }
-        }
-        es.onerror = () => {       // SSE упал — fallback на polling
-          if (es) { es.close(); es = null }
-          startPolling()
-        }
+        const r = await fetch('/api/health/cameras')
+        if (r.ok && alive) setData(await r.json())
       } catch (e) {
-        startPolling()
+        /* сервер перезапускается — ждём следующий тик */
       }
     }
-
-    startSSE()
-
-    return () => {
-      alive = false
-      if (es) es.close()
-      stopPolling()
-    }
+    load()
+    const t = setInterval(load, 5000)
+    return () => { alive = false; clearInterval(t) }
   }, [])
 
   const toggleFilter = (key) => {
@@ -127,14 +115,9 @@ export default function CameraHealth() {
   ]
 
   // PATCH-214: мультифильтр — пересечение (AND) всех активных предикатов
-  // PATCH-221: сортировка по выбранной колонке
   const rows = Object.entries(data.cameras)
     .filter(([, cam]) => active.every(k => FILTERS[k]?.test(cam)))
-    .sort(([aId, aCam], [bId, bCam]) => {
-      const av = sortCol === 'id' ? aId : (sortCol === 'name' ? aCam.name : aCam.ip)
-      const bv = sortCol === 'id' ? bId : (sortCol === 'name' ? bCam.name : bCam.ip)
-      return String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true }) * sortDir
-    })
+    .sort(([a], [b]) => a.localeCompare(b))
 
   const th = {
     padding: '10px 12px', background: '#1e293b', color: '#94a3b8',
@@ -149,17 +132,6 @@ export default function CameraHealth() {
         <h2 style={{ margin: 0, fontSize: '18px', color: '#f1f5f9' }}>📊 Состояние камер</h2>
         <span style={{ fontSize: '11px', color: '#64748b' }}>
           обновлено {new Date(data.ts * 1000).toLocaleTimeString()}
-        </span>
-        <span
-          title={mode === 'live' ? 'SSE: сервер пушит обновления мгновенно' : 'Polling: опрос каждые 5 сек'}
-          style={{
-            fontSize: '10px', fontWeight: 600, padding: '2px 8px',
-            borderRadius: '4px',
-            background: mode === 'live' ? '#065f46' : '#854d0e',
-            color: mode === 'live' ? '#d1fae5' : '#fef3c7',
-          }}
-        >
-          {mode === 'live' ? '⚡ live' : '🔄 poll'}
         </span>
         {active.length > 0 && (
           <button
@@ -216,24 +188,9 @@ export default function CameraHealth() {
         }}>
           <thead>
             <tr>
-              <th
-              onClick={() => { setSortCol('id'); setSortDir(d => sortCol === 'id' ? -d : 1) }}
-              style={{ ...th, cursor: 'pointer', userSelect: 'none', color: sortCol === 'id' ? '#38bdf8' : '#94a3b8' }}
-            >
-              ID {sortCol === 'id' && (sortDir === 1 ? '▲' : '▼')}
-            </th>
-              <th
-              onClick={() => { setSortCol('name'); setSortDir(d => sortCol === 'name' ? -d : 1) }}
-              style={{ ...th, cursor: 'pointer', userSelect: 'none', color: sortCol === 'name' ? '#38bdf8' : '#94a3b8' }}
-            >
-              Имя {sortCol === 'name' && (sortDir === 1 ? '▲' : '▼')}
-            </th>
-              <th
-              onClick={() => { setSortCol('ip'); setSortDir(d => sortCol === 'ip' ? -d : 1) }}
-              style={{ ...th, cursor: 'pointer', userSelect: 'none', color: sortCol === 'ip' ? '#38bdf8' : '#94a3b8' }}
-            >
-              IP {sortCol === 'ip' && (sortDir === 1 ? '▲' : '▼')}
-            </th>
+              <th style={th}>ID</th>
+              <th style={th}>Имя</th>
+              <th style={th}>IP</th>
               <th style={th}>Main</th>
               <th style={th}>Sub</th>
             </tr>
@@ -263,3 +220,98 @@ export default function CameraHealth() {
     </div>
   )
 }
+'''
+
+
+def patch_hls_worker(root):
+    print("--- hls_worker.py: «недоступна» не сбрасывается при переподключении ---")
+    f = root / "app" / "workers" / "hls_worker.py"
+    b = f.with_suffix(".py.bak-214")
+    b.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+    c = f.read_text(encoding="utf-8")
+
+    if "PATCH-214" in c:
+        print("  [OK] уже применён")
+        return True
+
+    old = '                    manager.set_status(route_id, "подключение", "Запуск потока...")'
+    new = (
+        '                    # PATCH-214: не сбрасываем «недоступна» при переподключении\n'
+        '                    _prev_st = manager.get_status(route_id) or {}\n'
+        '                    if _prev_st.get("state") == "недоступна":\n'
+        '                        manager.set_status(route_id, "недоступна", "Переподключение...")\n'
+        '                    else:\n'
+        '                        manager.set_status(route_id, "подключение", "Запуск потока...")'
+    )
+
+    if old in c:
+        c = c.replace(old, new, 1)
+        try:
+            compile(c, str(f), "exec")
+            f.write_text(c, encoding="utf-8")
+            print("  [OK] reconnect сохраняет «недоступна»")
+            return True
+        except SyntaxError as e:
+            print(f"  [FAIL] синтаксис: {e} — откат")
+            f.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+            return False
+    print("  [FAIL] якорь не найден — откат")
+    f.write_text(b.read_text(encoding="utf-8"), encoding="utf-8")
+    return False
+
+
+def rewrite_camera_health(root):
+    print("--- CameraHealth.jsx: плашки-фильтры + переименования ---")
+    f = root / "frontend" / "src" / "components" / "CameraHealth.jsx"
+    b = f.with_suffix(".jsx.bak-214")
+    b.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+    f.write_text(CAMERA_HEALTH_V2, encoding="utf-8")
+    print(f"  [OK] переписан ({f.stat().st_size} bytes)")
+    return True
+
+
+def main():
+    root = find_project_root()
+    print("=" * 76)
+    print("214: плашки-фильтры + стабильный статус «недоступна»")
+    print("=" * 76)
+    print()
+
+    ok = True
+    ok &= patch_hls_worker(root)
+    ok &= rewrite_camera_health(root)
+
+    if not ok:
+        sys.exit(1)
+
+    print()
+    print("=" * 76)
+    print("✅ Готово! Перезапуск сервера + сборка:")
+    print()
+    print(f"  cd {root}/frontend && npm run build")
+    print(f"  cd {root} && python main.py   (рестарт обязателен — правка backend)")
+    print()
+    print("Ожидаемо на /status (Ctrl+F5):")
+    print("  • Плашки в одну строку: [📦 Всего 24] [✅ Включено 17] ...")
+    print("  • Подписи: «Подключено» (вместо Стримится), «Недоступно» (вместо Ошибок)")
+    print("  • Клик по «Недоступно» → таблица фильтруется; клик по «Включено» →")
+    print("    пересечение: включённые И недоступные")
+    print("  • Повторный клик / «✕ Сбросить фильтры» — сброс")
+    print("  • Через ~10 сек после старта: «Недоступно 17», «Подключение 0»")
+    print("    (переподключения больше не сбрасывают статус)")
+    print("=" * 76)
+    print()
+    print("📦 Коммит:")
+    print(f"cd {root}")
+    print("git add -A")
+    print('git commit -m "feat(status): clickable filter cards + stable unavailable state (PATCH-214)" \\')
+    print('  -m "hls_worker: reconnect keeps state=недоступна (msg=Переподключение...)" \\')
+    print('  -m "CameraHealth: cards single-line, click = multi-filter (AND)" \\')
+    print('  -m "labels: Стримится→Подключено, Ошибок→Недоступно" \\')
+    print('  -m "reset button + empty-state hint for filters"')
+    print("git push")
+    print("=" * 76)
+
+
+if __name__ == "__main__":
+    main()

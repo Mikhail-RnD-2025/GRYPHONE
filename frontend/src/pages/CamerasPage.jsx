@@ -7,7 +7,7 @@ import Toasts from '../components/Toasts'
 
 export default function CamerasPage() {
   return (
-    <div className="page" style={{ overflowY: 'auto', height: 'auto', minHeight: '100vh' }}>
+    <div className="page">
       <Header />
       <h1 className="page-title">📹 Редактор камер</h1>
       <div className="tab-content">

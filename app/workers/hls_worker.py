@@ -32,8 +32,22 @@ _STATS_RE = re.compile(
 )
 
 
+
+# ============================================================================
+# PATCH-222: санитизация route_id для файловой системы
+# Windows запрещает: < > : " / \ | ? *
+# Применяется всегда (кроссплатформенность).
+# ============================================================================
+_INVALID_FS_CHARS = re.compile(r'[<>:"/\\|?*]')
+def _sanitize_for_fs(s: str) -> str:
+    """Заменяет запрещённые символы Windows на "_". Оригинальный route_id
+    сохраняется для статусов/SSE — санитизация применяется только к путям."""
+    return _INVALID_FS_CHARS.sub('_', s) if s else s
+
+
 async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
     """Воркер захвата одного потока."""
+    safe_route_id = _sanitize_for_fs(route_id)  # PATCH-222
     cfg = config.all()
     hls_cache = cfg.get("paths", {}).get("hls_cache", "hls_cache")
     ff_cfg = cfg.get("ffmpeg", {})
@@ -45,7 +59,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
 
     # Создаём директорию для сегментов.
     project_root = Path(__file__).parent.parent.parent
-    out_dir = project_root / hls_cache / "camera" / route_id
+    out_dir = project_root / hls_cache / "camera" / safe_route_id
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
@@ -133,7 +147,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                 else:
                     manager.set_status(route_id, "подключение", "Запуск потока...")
 
-                cmd = build_ffmpeg_cmd(url, route_id, mode, ff_cfg, str(project_root / hls_cache))
+                cmd = build_ffmpeg_cmd(url, safe_route_id, mode, ff_cfg, str(project_root / hls_cache))
 
                 # Если у камеры audio=false, добавляем флаг -an.
                 if not cam.audio:
@@ -245,7 +259,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
             for p in psutil.process_iter(['pid', 'cmdline']):
                 try:
                     cmdline = " ".join(p.info.get('cmdline') or [])
-                    if f"hls_cache/camera/{route_id}" in cmdline:
+                    if f"hls_cache/camera/{safe_route_id}" in cmdline:
                         p.kill()
                         logger.info("💀 %s: psutil убил PID %s", route_id, p.info['pid'])
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -264,7 +278,7 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                 else:
                     # Unix: pkill
                     _sp.run(
-                        ["pkill", "-9", "-f", f"hls_cache/camera/{route_id}"],
+                        ["pkill", "-9", "-f", f"hls_cache/camera/{safe_route_id}"],
                         stderr=_sp.DEVNULL, timeout=2
                     )
             except Exception:
