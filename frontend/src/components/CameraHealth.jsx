@@ -46,19 +46,59 @@ export default function CameraHealth() {
   const [data, setData] = useState(null)
   const [active, setActive] = useState([])  // PATCH-214: активные фильтры (AND)
 
+  // PATCH-218.2: SSE primary + polling fallback
+  const [mode, setMode] = useState('poll')
+
   useEffect(() => {
     let alive = true
-    const load = async () => {
+    let es = null
+    let pollTimer = null
+
+    const applyData = (d) => { if (alive) setData(d) }
+
+    const stopPolling = () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+    }
+
+    const startPolling = () => {
+      if (pollTimer || !alive) return
+      const load = async () => {
+        try {
+          const r = await fetch('/api/health/cameras')
+          if (r.ok && alive) applyData(await r.json())
+        } catch (e) { /* сервер перезапускается */ }
+      }
+      load()
+      pollTimer = setInterval(load, 5000)
+      if (alive) setMode('poll')
+    }
+
+    const startSSE = () => {
       try {
-        const r = await fetch('/api/health/cameras')
-        if (r.ok && alive) setData(await r.json())
+        es = new EventSource('/api/health/cameras/stream')
+        es.onmessage = (e) => {
+          try {
+            applyData(JSON.parse(e.data))
+            stopPolling()          // SSE работает — polling не нужен
+            if (alive) setMode('live')
+          } catch (err) { /* битый JSON — игнор */ }
+        }
+        es.onerror = () => {       // SSE упал — fallback на polling
+          if (es) { es.close(); es = null }
+          startPolling()
+        }
       } catch (e) {
-        /* сервер перезапускается — ждём следующий тик */
+        startPolling()
       }
     }
-    load()
-    const t = setInterval(load, 5000)
-    return () => { alive = false; clearInterval(t) }
+
+    startSSE()
+
+    return () => {
+      alive = false
+      if (es) es.close()
+      stopPolling()
+    }
   }, [])
 
   const toggleFilter = (key) => {
@@ -102,6 +142,17 @@ export default function CameraHealth() {
         <h2 style={{ margin: 0, fontSize: '18px', color: '#f1f5f9' }}>📊 Состояние камер</h2>
         <span style={{ fontSize: '11px', color: '#64748b' }}>
           обновлено {new Date(data.ts * 1000).toLocaleTimeString()}
+        </span>
+        <span
+          title={mode === 'live' ? 'SSE: сервер пушит обновления мгновенно' : 'Polling: опрос каждые 5 сек'}
+          style={{
+            fontSize: '10px', fontWeight: 600, padding: '2px 8px',
+            borderRadius: '4px',
+            background: mode === 'live' ? '#065f46' : '#854d0e',
+            color: mode === 'live' ? '#d1fae5' : '#fef3c7',
+          }}
+        >
+          {mode === 'live' ? '⚡ live' : '🔄 poll'}
         </span>
         {active.length > 0 && (
           <button

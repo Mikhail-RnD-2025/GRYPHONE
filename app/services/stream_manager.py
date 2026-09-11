@@ -12,6 +12,8 @@ app/services/stream_manager.py
 import asyncio
 import logging
 import threading
+import queue  # PATCH-218
+import time as _time  # PATCH-218
 from collections import deque
 from typing import Dict, List, Optional
 
@@ -32,6 +34,10 @@ class StreamManager:
         self._lock = threading.RLock()
         self._log_lock = threading.Lock()
         self._started = False
+        self._clients: Set[queue.Queue] = set()  # PATCH-218: SSE клиенты
+        self._clients_lock = threading.Lock()
+        self._last_broadcast = 0.0  # PATCH-218: throttle timestamp
+
         self._ready_event = threading.Event()
 
     def start(self) -> None:
@@ -58,6 +64,46 @@ class StreamManager:
         """PATCH-208: thread-safe копия всех статусов воркеров."""
         with self._lock:
             return {k: dict(v) for k, v in self._stats.items()}
+
+
+    # ===================================================================
+    # PATCH-218: SSE broadcast
+    # ===================================================================
+    def subscribe(self) -> queue.Queue:
+        """Регистрирует SSE-клиента. Возвращает Queue для получения обновлений."""
+        q: queue.Queue = queue.Queue(maxsize=50)
+        with self._clients_lock:
+            self._clients.add(q)
+        return q
+
+    def unsubscribe(self, q: queue.Queue) -> None:
+        """Удаляет SSE-клиента."""
+        with self._clients_lock:
+            self._clients.discard(q)
+
+    def _broadcast(self) -> None:
+        """PATCH-218: рассылает snapshot всем SSE-клиентам (throttle 500ms)."""
+        now = _time.time()
+        if now - self._last_broadcast < 0.5:
+            return  # throttle
+        self._last_broadcast = now
+
+        # snapshot под _lock уже держится внешним set_status,
+        # но здесь мы берём новую копию для безопасности
+        with self._lock:
+            snapshot = {k: dict(v) for k, v in self._stats.items()}
+
+        with self._clients_lock:
+            dead = []
+            for q in self._clients:
+                try:
+                    if q.full():
+                        q.get_nowait()  # выбросить старое
+                    q.put_nowait({"stats": snapshot, "ts": now})
+                except Exception:
+                    dead.append(q)
+            for q in dead:
+                self._clients.discard(q)
 
     def stop(self) -> None:
         if not self._started or self._loop is None:

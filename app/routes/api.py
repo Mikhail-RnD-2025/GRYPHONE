@@ -434,5 +434,77 @@ def register(app):
                 "errors": errors,
             },
         })
+    # ========================================================================
+    # PATCH-218.3: SSE stream (декоратор + тело вместе, внутри register_routes)
+    # ========================================================================
+    @app.route("/api/health/cameras/stream")
+    def health_stream():
+        """SSE endpoint: пушит snapshot при подключении и при изменениях."""
+        import queue as _q
+        from flask import Response, stream_with_context
 
+        def generate():
+            q = stream_manager.subscribe()
+            try:
+                # initial snapshot
+                all_stats = stream_manager.get_all_statuses()
+                cameras = camera_service.all_cameras()
+                initial = _build_health_payload(all_stats, cameras)
+                yield f"data: {__import__('json').dumps(initial)}\n\n"
 
+                while True:
+                    try:
+                        msg = q.get(timeout=15.0)
+                        cameras_now = camera_service.all_cameras()
+                        payload = _build_health_payload(msg["stats"], cameras_now)
+                        yield f"data: {__import__('json').dumps(payload)}\n\n"
+                    except _q.Empty:
+                        yield ": keepalive\n\n"  # heartbeat
+            except GeneratorExit:
+                pass
+            finally:
+                stream_manager.unsubscribe(q)
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+def _build_health_payload(stats: dict, cameras) -> dict:
+    """PATCH-218: собирает health-пейлоад из stats и списка камер."""
+    import time as _time
+    result = {}
+    for cam in cameras:
+        rid_main = f"{cam.id}_main"
+        rid_sub = f"{cam.id}_sub"
+        if not cam.enabled:
+            st_main = {"state": "отключена", "msg": "Камера выключена", "metrics": {}}
+            st_sub = {"state": "отключена", "msg": "Камера выключена", "metrics": {}}
+        else:
+            st_main = stats.get(rid_main, {"state": "не_запущен", "msg": "Воркер не запущен", "metrics": {}})
+            st_sub = stats.get(rid_sub, {"state": "не_запущен", "msg": "Воркер не запущен", "metrics": {}})
+        result[cam.id] = {
+            "enabled": cam.enabled, "name": cam.name, "ip": cam.ipaddress,
+            "main": st_main, "sub": st_sub,
+        }
+    enabled_cams = [c for c in result.values() if c["enabled"]]
+    return {
+        "ts": _time.time(),
+        "cameras": result,
+        "summary": {
+            "total": len(cameras),
+            "enabled": len(enabled_cams),
+            "disabled": len(cameras) - len(enabled_cams),
+            "streaming": sum(1 for c in enabled_cams
+                            if c["main"]["state"] == "в_сети" or c["sub"]["state"] == "в_сети"),
+            "connecting": sum(1 for c in enabled_cams
+                             if c["main"]["state"] == "подключение" or c["sub"]["state"] == "подключение"),
+            "errors": sum(1 for c in enabled_cams
+                         if c["main"]["state"] == "недоступна" or c["sub"]["state"] == "недоступна"),
+        },
+    }
