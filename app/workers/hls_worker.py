@@ -124,7 +124,14 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                     # отключении камеры внутри цикла.
                     manager.set_status(route_id, "недоступна", "Камера отключена")
                     break
-                manager.set_status(route_id, "подключение", "Запуск потока...")
+                # PATCH-214.1: не сбрасываем «недоступна» при переподключении.
+                # Если предыдущий state = "недоступна" (хост/кодек/ошибка),
+                # оставляем его, меняя только msg. Иначе — как раньше.
+                _prev = manager.get_status(route_id) or {}
+                if _prev.get("state") == "недоступна":
+                    manager.set_status(route_id, "недоступна", "Переподключение...")
+                else:
+                    manager.set_status(route_id, "подключение", "Запуск потока...")
 
                 cmd = build_ffmpeg_cmd(url, route_id, mode, ff_cfg, str(project_root / hls_cache))
 

@@ -1,15 +1,15 @@
 // ============================================================
-//  GRYPHONE — Camera Health section (PATCH-210)
+//  GRYPHONE — Состояние камер (PATCH-210/214)
 //  ------------------------------------------------------------
-//  Секция здоровья камер для страницы /status.
-//  Самодостаточна: fetch /api/health/cameras + автообновление 5 сек.
+//  Секция состояния камер для страницы /status.
+//  PATCH-214: плашки в одну строку; клик = мультифильтр (AND).
 // ============================================================
 import { useState, useEffect } from 'react'
 
 const STATE_STYLE = {
-  'в_сети':      { bg: '#065f46', fg: '#d1fae5', icon: '🟢', label: 'Стримит' },
+  'в_сети':      { bg: '#065f46', fg: '#d1fae5', icon: '🟢', label: 'Подключено' },
   'подключение': { bg: '#854d0e', fg: '#fef3c7', icon: '🟡', label: 'Подключение' },
-  'недоступна':  { bg: '#991b1b', fg: '#fecaca', icon: '🔴', label: 'Ошибка' },
+  'недоступна':  { bg: '#991b1b', fg: '#fecaca', icon: '🔴', label: 'Недоступна' },
   'отключена':   { bg: '#374151', fg: '#d1d5db', icon: '⚪', label: 'Выключена' },
   'не_запущен':  { bg: '#9a3412', fg: '#fed7aa', icon: '🟠', label: 'Не запущен' },
 }
@@ -33,9 +33,18 @@ function StateCell({ st }) {
   )
 }
 
+// PATCH-214: предикаты фильтров (клик по плашке)
+const FILTERS = {
+  enabled:     { test: (c) => c.enabled },
+  disabled:    { test: (c) => !c.enabled },
+  connected:   { test: (c) => c.main?.state === 'в_сети' || c.sub?.state === 'в_сети' },
+  connecting:  { test: (c) => c.main?.state === 'подключение' || c.sub?.state === 'подключение' },
+  unavailable: { test: (c) => c.main?.state === 'недоступна' || c.sub?.state === 'недоступна' },
+}
+
 export default function CameraHealth() {
   const [data, setData] = useState(null)
-  const [filter, setFilter] = useState('all')
+  const [active, setActive] = useState([])  // PATCH-214: активные фильтры (AND)
 
   useEffect(() => {
     let alive = true
@@ -44,13 +53,18 @@ export default function CameraHealth() {
         const r = await fetch('/api/health/cameras')
         if (r.ok && alive) setData(await r.json())
       } catch (e) {
-        /* сервер перезапускается — молча ждём следующий тик */
+        /* сервер перезапускается — ждём следующий тик */
       }
     }
     load()
     const t = setInterval(load, 5000)
     return () => { alive = false; clearInterval(t) }
   }, [])
+
+  const toggleFilter = (key) => {
+    if (!key) return
+    setActive(a => (a.includes(key) ? a.filter(k => k !== key) : [...a, key]))
+  }
 
   if (!data) {
     return (
@@ -62,35 +76,17 @@ export default function CameraHealth() {
 
   const s = data.summary || {}
   const cards = [
-    { label: 'Всего', value: s.total ?? 0, icon: '📦', color: '#f1f5f9' },
-    { label: 'Включено', value: s.enabled ?? 0, icon: '✅', color: '#22c55e' },
-    { label: 'Выключено', value: s.disabled ?? 0, icon: '⚪', color: '#94a3b8' },
-    { label: 'Стримится', value: s.streaming ?? 0, icon: '🟢', color: '#22c55e' },
-    { label: 'Подключение', value: s.connecting ?? 0, icon: '🟡', color: '#eab308' },
-    { label: 'Ошибок', value: s.errors ?? 0, icon: '🔴', color: '#ef4444' },
+    { key: null,          label: 'Всего',       value: s.total ?? 0,      icon: '📦', color: '#f1f5f9' },
+    { key: 'enabled',     label: 'Включено',    value: s.enabled ?? 0,    icon: '✅', color: '#22c55e' },
+    { key: 'disabled',    label: 'Выключено',   value: s.disabled ?? 0,   icon: '⚪', color: '#94a3b8' },
+    { key: 'connected',   label: 'Подключено',  value: s.streaming ?? 0,  icon: '🟢', color: '#22c55e' },
+    { key: 'connecting',  label: 'Подключение', value: s.connecting ?? 0, icon: '🟡', color: '#eab308' },
+    { key: 'unavailable', label: 'Недоступно',  value: s.errors ?? 0,     icon: '🔴', color: '#ef4444' },
   ]
 
-  const filters = [
-    ['all', 'Все', s.total],
-    ['enabled', 'Включённые', s.enabled],
-    ['disabled', 'Выключенные', s.disabled],
-    ['streaming', 'Стримящиеся', s.streaming],
-    ['error', 'С ошибкой', s.errors],
-  ]
-
-  const match = (cam) => {
-    if (filter === 'all') return true
-    if (filter === 'enabled') return cam.enabled
-    if (filter === 'disabled') return !cam.enabled
-    if (filter === 'streaming')
-      return cam.main?.state === 'в_сети' || cam.sub?.state === 'в_сети'
-    if (filter === 'error')
-      return cam.main?.state === 'недоступна' || cam.sub?.state === 'недоступна'
-    return true
-  }
-
+  // PATCH-214: мультифильтр — пересечение (AND) всех активных предикатов
   const rows = Object.entries(data.cameras)
-    .filter(([, cam]) => match(cam))
+    .filter(([, cam]) => active.every(k => FILTERS[k]?.test(cam)))
     .sort(([a], [b]) => a.localeCompare(b))
 
   const th = {
@@ -107,44 +103,51 @@ export default function CameraHealth() {
         <span style={{ fontSize: '11px', color: '#64748b' }}>
           обновлено {new Date(data.ts * 1000).toLocaleTimeString()}
         </span>
-      </div>
-
-      {/* Summary */}
-      <div style={{
-        display: 'grid', gap: '10px', marginBottom: '14px',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-      }}>
-        {cards.map(c => (
-          <div key={c.label} style={{
-            background: '#1e293b', border: '1px solid #334155',
-            borderRadius: '10px', padding: '12px 16px',
-          }}>
-            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>
-              {c.icon} {c.label}
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: c.color }}>
-              {c.value}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        {filters.map(([k, label, cnt]) => (
+        {active.length > 0 && (
           <button
-            key={k}
-            onClick={() => setFilter(k)}
+            onClick={() => setActive([])}
             style={{
-              padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
-              border: filter === k ? '1px solid #38bdf8' : '1px solid #334155',
-              background: filter === k ? '#1e3a8a' : '#1e293b',
-              color: '#f1f5f9', cursor: 'pointer',
+              marginLeft: 'auto', padding: '4px 10px', fontSize: '11px',
+              background: '#1e293b', color: '#94a3b8',
+              border: '1px solid #334155', borderRadius: '6px', cursor: 'pointer',
             }}
           >
-            {label} <span style={{ opacity: 0.6 }}>({cnt ?? 0})</span>
+            ✕ Сбросить фильтры ({active.length})
           </button>
-        ))}
+        )}
+      </div>
+
+      {/* PATCH-214: плашки в одну строку, клик = фильтр */}
+      <div style={{
+        display: 'grid', gap: '10px', marginBottom: '14px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      }}>
+        {cards.map(c => {
+          const isActive = c.key && active.includes(c.key)
+          return (
+            <div
+              key={c.label}
+              onClick={() => toggleFilter(c.key)}
+              title={c.key ? 'Клик — фильтр по этому параметру' : undefined}
+              style={{
+                background: '#1e293b',
+                border: isActive ? `1px solid ${c.color}` : '1px solid #334155',
+                boxShadow: isActive ? `0 0 8px ${c.color}55` : 'none',
+                borderRadius: '10px', padding: '10px 16px',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                cursor: c.key ? 'pointer' : 'default',
+                userSelect: 'none',
+              }}
+            >
+              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {c.icon} {c.label}
+              </span>
+              <span style={{ fontSize: '20px', fontWeight: 700, color: c.color }}>
+                {c.value}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       {/* Table */}
@@ -175,7 +178,9 @@ export default function CameraHealth() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan="5" style={{ ...td, padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                  Нет камер, соответствующих фильтру
+                  {active.length > 0
+                    ? 'Нет камер под выбранные фильтры (клик по плашке — сброс)'
+                    : 'Нет данных о камерах'}
                 </td>
               </tr>
             )}

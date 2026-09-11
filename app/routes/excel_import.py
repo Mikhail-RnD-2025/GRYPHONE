@@ -35,6 +35,7 @@ import tempfile
 import logging
 from pathlib import Path
 from flask import request, jsonify
+from app.services.camera_import_service import camera_import_service  # PATCH-215
 
 logger = logging.getLogger(__name__)
 
