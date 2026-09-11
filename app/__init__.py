@@ -9,6 +9,7 @@ mimetypes.add_type("application/vnd.apple.mpegurl", ".m3u8")
 mimetypes.add_type("video/mp2t", ".ts")
 
 import logging
+from logging.handlers import RotatingFileHandler  # PATCH-227
 import threading
 from pathlib import Path
 from flask import Flask, send_from_directory, abort
@@ -30,6 +31,20 @@ def create_app() -> Flask:
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+
+    # PATCH-227: файловый логгер с ротацией
+    log_dir = project_root / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    _fh = RotatingFileHandler(
+        log_dir / "gryphone.log",
+        maxBytes=5 * 1024 * 1024,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    _fh.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+    logging.getLogger().addHandler(_fh)
 
     _register_frontend(app, frontend_dist)
     register_routes(app)

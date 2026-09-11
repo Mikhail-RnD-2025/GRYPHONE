@@ -116,12 +116,9 @@
   flex: 1;
   min-height: 0;
 }
-.sets-list::-webkit-scrollbar { width: 8px; }
-.sets-list::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
-  border-radius: 4px;
-}
-.sets-list::-webkit-scrollbar-track { background: transparent; }
+
+
+
 
 .sets-cam-item {
   padding: 6px 10px;

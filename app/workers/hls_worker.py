@@ -199,6 +199,25 @@ async def hls_worker(url: str, route_id: str, cam_id: str, manager) -> None:
                                         route_id,
                                         f"[{time.strftime('%H:%M:%S')}] {text}",
                                     )
+                                    # PATCH-228: дублируем в глобальные логи
+                                    low = text.lower()
+                                    if text.startswith("frame="):
+                                        pass  # прогресс-флуд не логируем
+                                    elif any(k in low for k in (
+                                        "error", "failed", "invalid", "refused",
+                                        "timeout", "no such", "operation not",
+                                        "unreachable", "denied",
+                                    )):
+                                        logger.error("[ffmpeg:%s] %s", route_id, text)
+                                    elif any(k in low for k in (
+                                        "warning", "dropped", "deprecated",
+                                        "corrupt", "truncat",
+                                    )):
+                                        logger.warning("[ffmpeg:%s] %s", route_id, text)
+                                    elif "stream #0" in low or "input #" in low:
+                                        logger.info("[ffmpeg:%s] %s", route_id, text)
+                                    else:
+                                        logger.debug("[ffmpeg:%s] %s", route_id, text)
                                     m = _STATS_RE.search(text)
                                     if m:
                                         manager.set_status(

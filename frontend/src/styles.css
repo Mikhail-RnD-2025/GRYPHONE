@@ -12,3 +12,42 @@
 @import './styles/fullscreen.css';
 @import './styles/hamburger.css';
 @import './styles/forms.css';
+
+
+/* ============================================================
+   PATCH-224: ЕДИНЫЙ стиль скроллбаров для всего проекта
+   ------------------------------------------------------------
+   Тёмная тема: track полупрозрачный, thumb #334155, hover #475569.
+   Применяется ко всем скроллящимся элементам: списки, таблицы,
+   формы, модалки, dropdown-меню.
+   ============================================================ */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 rgba(15, 23, 42, 0.4);
+}
+
+/* Chrome / Edge / Safari */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 6px;
+  border: 2px solid rgba(15, 23, 42, 0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+::-webkit-scrollbar-thumb:active {
+  background: #64748b;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

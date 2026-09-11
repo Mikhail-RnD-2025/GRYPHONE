@@ -475,6 +475,69 @@ def register(app):
             },
         )
 
+    # ========================================================================
+    # PATCH-227: GET /api/logs — читает хвост logs/gryphone.log
+    # Формат ответа под LogsPage.jsx: {logs: [{timestamp, level, message}]}
+    # ========================================================================
+    @app.route("/api/logs")
+    def get_logs():
+        from flask import request, jsonify
+        import re as _re
+        log_path = Path(__file__).resolve().parent.parent.parent / "logs" / "gryphone.log"
+        limit = min(int(request.args.get("limit", 500)), 2000)
+        level_filter = request.args.get("level", "").upper()
+
+        if not log_path.exists():
+            return jsonify({"logs": []})
+
+        # Читаем последние ~200KB (экономим память на больших логах)
+        try:
+            with log_path.open("rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - 200 * 1024))
+                tail = f.read().decode("utf-8", errors="replace")
+        except Exception:
+            return jsonify({"logs": []})
+
+        # Формат: 2026-09-11 12:04:28,596 [INFO] app.services.stream_manager: текст
+        hdr = _re.compile(
+            r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) \[(\w+)\] ([^:]+): (.*)$"
+        )
+        entries = []
+        for raw_line in tail.splitlines():
+            m = hdr.match(raw_line)
+            if m:
+                entries.append({
+                    "timestamp": m.group(1),
+                    "level": m.group(2),
+                    "logger": m.group(3),
+                    "message": m.group(4),
+                })
+            elif entries:
+                # продолжение предыдущей записи (traceback и т.п.)
+                entries[-1]["message"] += "\n" + raw_line
+
+        # Фильтр по уровню (если задан)
+        if level_filter:
+            entries = [e for e in entries if e["level"] == level_filter]
+
+        # limit последних
+        entries = entries[-limit:]
+
+        # Формат под LogsPage: timestamp в ISO, level/message
+        logs = []
+        for e in entries:
+            # Преобразуем "2026-09-11 12:04:28,596" → "2026-09-11T12:04:28.596"
+            ts_iso = e["timestamp"].replace(" ", "T").replace(",", ".")
+            logs.append({
+                "timestamp": ts_iso,
+                "level": e["level"],
+                "message": f"[{e['logger']}] {e['message']}",
+            })
+        return jsonify({"logs": logs})
+
+
 def _build_health_payload(stats: dict, cameras) -> dict:
     """PATCH-218: собирает health-пейлоад из stats и списка камер."""
     import time as _time

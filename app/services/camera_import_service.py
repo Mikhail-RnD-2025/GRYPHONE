@@ -376,6 +376,7 @@ class CameraImportService:
             updated = 0
             added = 0
             errors = []
+            warnings = []  # PATCH-226
 
             for i, cam_data in enumerate(data):
                 try:
@@ -397,6 +398,11 @@ class CameraImportService:
                     if not cam_id or not cam_data.get('ipaddress') or not cam_data.get('main_url'):
                         errors.append(f"Камера {i}: пропущена (нет ID/IP/main_url)")
                         continue
+
+                    # PATCH-226: валидация ID
+                    id_warnings = _validate_camera_id(cam_id)
+                    if id_warnings:
+                        warnings.append({'id': cam_id, 'messages': id_warnings})
 
                     if cam_id in current_cams:
                         current_cams[cam_id].update(cam_data)
@@ -425,7 +431,8 @@ class CameraImportService:
                 'added': added,
                 'linked_to_set': linked,
                 'target_set': target,
-                'errors': errors
+                'errors': errors,
+                'warnings': warnings,  # PATCH-226.3
             }
 
         except Exception as e:
